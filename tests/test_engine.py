@@ -78,3 +78,25 @@ def test_telegram_entry_and_exit_alert_details(tmp_path):
     assert 'PAPER EXIT' in exit_message and 'Net P&L:' in exit_message
     assert 'Held: 10s' in exit_message and 'test_exit' in exit_message
     assert 'Estimated costs:' in exit_message and 'SIMULATED' in exit_message
+
+def test_scan_diagnostics_explain_rejections_and_entries(tmp_path):
+    e = PaperEngine(cfg(), tmp_path)
+    e.scan_metrics = e.empty_scan_metrics()
+    e.update({**snap(102), "liquidity": 100}, now=3)
+    assert e.scan_metrics["discovered"] == 1
+    assert e.scan_metrics["rejected_liquidity"] == 1
+    e.history["p1"] = [[1, 100], [2, 101]]
+    e.update(snap(102), now=4)
+    assert e.scan_metrics["qualified_entries"] == 1
+    status = e.dashboard_status()
+    assert status["scanner"]["metrics"]["qualified_entries"] == 1
+    assert status["scanner"]["api"]["provider"] == "DexScreener REST"
+
+
+def test_scan_diagnostics_distinguish_volume_and_flow(tmp_path):
+    e = PaperEngine(cfg(), tmp_path)
+    e.scan_metrics = e.empty_scan_metrics()
+    e.update({**snap(102, "low-volume"), "volume24": 1}, now=3)
+    e.update({**snap(102, "weak-flow"), "buys5": 1, "sells5": 8}, now=3)
+    assert e.scan_metrics["rejected_volume"] == 1
+    assert e.scan_metrics["rejected_flow"] == 1
