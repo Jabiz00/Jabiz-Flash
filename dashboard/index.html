@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jabiz Flash</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1020;--panel:#141d32;--muted:#91a0b8;--line:#27334c;--green:#35d49a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3ff;font:15px system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:24px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:26px}.muted{color:var(--muted)}
+.pill{border:1px solid #276e59;color:var(--green);padding:6px 10px;border-radius:30px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:22px 0}
+.card,section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.k{color:var(--muted);font-size:12px}.v{font-size:25px;font-weight:700;margin-top:8px}
+section{margin-top:14px;overflow:auto}h2{font-size:17px;margin:0 0 14px}table{width:100%;border-collapse:collapse;min-width:520px}
+td,th{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted)}footer{color:var(--muted);font-size:12px;margin:20px 0}
+</style></head><body><main><header><div><h1>JABIZ FLASH</h1><div class="muted">Solana paper-trading monitor</div></div><span class="pill">PAPER ONLY · NO LIVE TRADING</span></header>
+<div class="grid">
+<div class="card"><div class="k">Virtual equity</div><div class="v" id="equity">—</div></div>
+<div class="card"><div class="k">Realized P&amp;L</div><div class="v" id="pnl">—</div></div>
+<div class="card"><div class="k">Closed trades</div><div class="v" id="trades">—</div></div>
+<div class="card"><div class="k">Win rate</div><div class="v" id="winrate">—</div></div>
+<div class="card"><div class="k">Open positions</div><div class="v" id="open">—</div></div>
+<div class="card"><div class="k">Risk / trade</div><div class="v" id="risk">—</div></div></div>
+<section><h2>Open positions</h2><table><thead><tr><th>Token</th><th>Entry</th><th>Stop</th><th>Target</th><th>Risk budget</th></tr></thead><tbody id="positions"><tr><td colspan="5">Waiting…</td></tr></tbody></table></section>
+<section><h2>System status</h2><div id="status" class="muted">Loading…</div></section><footer>Read-only dashboard. Simulated prices are not executable quotes. Refreshes every 30 seconds.</footer></main>
+<script>
+const source='https://raw.githubusercontent.com/Jabiz00/Jabiz-Flash/main/dashboard/status.json';
+async function refresh(){try{const r=await fetch(source+'?t='+Date.now());if(!r.ok)throw Error('No status published yet');
+const d=await r.json(),s=d.stats||{},money=n=>'$'+Number(n||0).toFixed(2),wr=s.closed_trades?100*s.wins/s.closed_trades:0;
+document.getElementById('equity').textContent=money(d.equity);document.getElementById('pnl').textContent=money(s.realized_pnl);
+document.getElementById('trades').textContent=s.closed_trades||0;document.getElementById('winrate').textContent=wr.toFixed(1)+'%';
+document.getElementById('open').textContent=(d.open_positions||[]).length+' / '+d.max_positions;
+document.getElementById('risk').textContent=(100*d.risk_per_trade).toFixed(1)+'%';
+document.getElementById('positions').innerHTML=(d.open_positions||[]).map(p=>`<tr><td>${p.token}</td><td>${p.entry}</td><td>${p.stop}</td><td>${p.target}</td><td>${money(p.risk_usd)}</td></tr>`).join('')||'<tr><td colspan="5">No open positions</td></tr>';
+document.getElementById('status').textContent='Last update: '+new Date(d.updated_at*1000).toLocaleString()+' · '+d.mode;
+}catch(e){document.getElementById('status').textContent=e.message;}}refresh();setInterval(refresh,30000);
+</script></body></html>

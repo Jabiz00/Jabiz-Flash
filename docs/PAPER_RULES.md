@@ -1,9 +1,11 @@
-# Paper rules
+# Paper rules and limitations
 
-- Entry requires liquidity, 24h volume, minimum pair age, positive recent buy imbalance, and positive observed price momentum.
-- Stop distance defaults to 1.5% of entry; quantity is sized from 1% of equity risk budget.
-- Baseline target is 2R. If momentum weakens while a trade is profitable, early exit is allowed below 2R.
-- Hard maximum hold is 300 seconds.
-- The same pair cannot be opened twice simultaneously.
-- All trades are simulated. The program does not submit transactions.
-- Current momentum is computed from snapshots collected while the process is running; after a restart, the short-term price history starts fresh.
+- Long-only spot paper entries.
+- Filters: minimum liquidity, 24h volume, pair age, positive recent buy imbalance and observed positive price momentum.
+- Stop distance defaults to 1.5% of entry.
+- Quantity sizing includes estimated stop loss plus estimated round-trip costs at the planned stop within 1% of current equity.
+- 2R target is based on price distance before costs; net realized R is lower after estimated costs.
+- Profitable early exit is allowed below 2R when momentum weakens.
+- Trailing stop activates after 1R.
+- Intended maximum hold is 300 seconds, but GitHub schedule gaps can delay observation.
+- No mint/freeze authority audit, honeypot simulation, executable quote, or live order routing exists.
