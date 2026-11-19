@@ -1,18 +1,17 @@
 import time
-from scripts import validation
+from flash import validation
 
 def test_init_is_idempotent(tmp_path, monkeypatch):
-    path=tmp_path/"validation.json"
+    meta=tmp_path/"validation.json"
     monkeypatch.setattr(validation,"DATA",tmp_path)
-    monkeypatch.setattr(validation,"META",path)
-    first=validation.init(); second=validation.init()
-    assert first["started_at"]==second["started_at"]
-    assert second["duration_days"]==14 and second["mode"]=="PAPER ONLY"
+    monkeypatch.setattr(validation,"META",meta)
+    a=validation.init(); b=validation.init()
+    assert a["started_at"]==b["started_at"]
+    assert b["duration_days"]==14 and b["mode"]=="PAPER ONLY"
 
 def test_trade_summary_metrics():
     now=time.time()
-    rows=[
-      {"event":"paper_exit","time":now-20,"net_pnl":2,"risk_budget":1,"holding_seconds":10,"reason":"target_reached"},
+    rows=[{"event":"paper_exit","time":now-20,"net_pnl":2,"risk_budget":1,"holding_seconds":10,"reason":"target_reached"},
       {"event":"paper_exit","time":now-10,"net_pnl":-1,"risk_budget":1,"holding_seconds":20,"reason":"stop_loss_or_trailing_stop"},
       {"event":"paper_session","time":now-5,"scan_metrics":{"discovered":20,"qualified_entries":2}}]
     result=validation.summary(rows,now-100,100)
