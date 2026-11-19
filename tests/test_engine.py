@@ -58,3 +58,23 @@ def test_closed_trade_history_includes_contract_and_hold_time(tmp_path):
     assert trade["exit"]==103
     assert trade["holding_seconds"]==10
     assert trade["reason"]=="test_exit"
+
+def test_telegram_entry_and_exit_alert_details(tmp_path):
+    class CaptureNotifier:
+        def __init__(self): self.messages=[]
+        def send(self,message): self.messages.append(message)
+    notifier=CaptureNotifier()
+    e=PaperEngine(cfg(),tmp_path,notifier=notifier)
+    e.history['p1']=[[1,100],[2,101]]
+    e.update(snap(102),now=3)
+    assert len(notifier.messages)==1
+    entry=notifier.messages[0]
+    assert 'PAPER ENTRY' in entry and 'Target:' in entry
+    assert 'Risk budget:' in entry and 'solscan.io/token/mint' in entry
+    assert 'SIMULATED' in entry
+    e.close('p1',103,'test_exit',now=13)
+    assert len(notifier.messages)==2
+    exit_message=notifier.messages[1]
+    assert 'PAPER EXIT' in exit_message and 'Net P&L:' in exit_message
+    assert 'Held: 10s' in exit_message and 'test_exit' in exit_message
+    assert 'Estimated costs:' in exit_message and 'SIMULATED' in exit_message
