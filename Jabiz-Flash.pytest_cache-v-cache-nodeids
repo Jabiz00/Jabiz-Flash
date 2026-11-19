@@ -1,0 +1,7 @@
+[
+  "tests/test_engine.py::test_cost_included_risk_sizing",
+  "tests/test_engine.py::test_max_ten_positions",
+  "tests/test_engine.py::test_momentum",
+  "tests/test_engine.py::test_persisted_history",
+  "tests/test_market.py::test_pair_snapshot"
+]
