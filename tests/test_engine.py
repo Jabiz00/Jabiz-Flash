@@ -33,3 +33,28 @@ def test_persisted_history(tmp_path):
 def test_momentum():
     assert round(PaperEngine.momentum([[1,100],[2,102]]),2)==2.0
     assert PaperEngine.momentum([[1,100]]) is None
+def test_dashboard_position_details(tmp_path):
+    e=PaperEngine(cfg(),tmp_path)
+    e.history["p1"]=[[1,100],[2,101]]
+    e.update(snap(102),now=3)
+    status=e.dashboard_status()
+    p=status["open_positions"][0]
+    assert p["address"]=="mint"
+    assert p["contract_url"]=="https://solscan.io/token/mint"
+    assert p["dex_url"]=="https://example.com"
+    assert p["current_price"]==102
+    assert p["last_price"]==102
+    assert p["held_seconds"]>=0
+    assert "unrealized_pnl" in p
+
+def test_closed_trade_history_includes_contract_and_hold_time(tmp_path):
+    e=PaperEngine(cfg(),tmp_path)
+    e.history["p1"]=[[1,100],[2,101]]
+    e.update(snap(102),now=3)
+    e.close("p1",103,"test_exit",now=13)
+    trade=e.dashboard_status()["recent_trades"][0]
+    assert trade["address"]=="mint"
+    assert trade["entry"]==102
+    assert trade["exit"]==103
+    assert trade["holding_seconds"]==10
+    assert trade["reason"]=="test_exit"
