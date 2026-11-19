@@ -3,8 +3,14 @@ name: Jabiz Flash Tests
 on:
   push:
     branches: [main, "feature/**"]
+    paths-ignore:
+      - "data/**"
+      - "dashboard/status.json"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "data/**"
+      - "dashboard/status.json"
   workflow_dispatch:
 
 permissions:
