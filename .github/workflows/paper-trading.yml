@@ -1,0 +1,47 @@
+name: Jabiz Flash Paper Trading
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jabiz-flash-paper
+  cancel-in-progress: false
+
+jobs:
+  paper-session:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install project
+        run: pip install -e .
+
+      - name: Run paper trading session
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m flash --duration-seconds 230
+
+      - name: Save paper-trading state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/ dashboard/status.json
+          if git diff --cached --quiet; then
+            echo "No state changes to save."
+          else
+            git commit -m "Update Jabiz Flash paper trading state"
+            git push origin HEAD:main
+          fi
