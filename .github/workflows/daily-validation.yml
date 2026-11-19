@@ -1,0 +1,50 @@
+name: Jabiz Flash Daily Validation Report
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 0 * * *"
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: jabiz-flash-validation-data
+  cancel-in-progress: false
+
+jobs:
+  daily-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout latest paper-trading data
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project
+        run: pip install -e .
+      - name: Generate daily or final report
+        env:
+          GH_TOKEN: \${{ github.token }}
+          GITHUB_REPOSITORY: \${{ github.repository }}
+          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python -m flash.validation report
+      - name: Save report and validation metadata
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/validation.json data/reports/
+          if git diff --cached --quiet; then
+            echo "No report changes."
+          else
+            git commit -m "Publish Jabiz Flash validation report"
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          fi

@@ -25,6 +25,7 @@ def main():
     engine = PaperEngine(cfg, notifier=notifier)
     market = DexScreener()
     stop_event = threading.Event()
+    started_at = time.time()
 
     def request_stop(signum, frame):
         print(f"[runtime] received signal {signum}; shutting down cleanly")
@@ -62,35 +63,27 @@ def main():
             except Exception as exc:
                 now = time.time()
                 engine.market_status = market.status()
-                engine.market_status.update({
-                    "runtime_error": str(exc)[:240],
-                    "last_scan_at": now,
-                    "cycle": cycle,
-                })
+                engine.market_status.update({"runtime_error": str(exc)[:240], "last_scan_at": now, "cycle": cycle})
                 print(f"[scanner] cycle {cycle} failed: {exc}")
                 if now - last_error_notice >= 300:
-                    notifier.send(
-                        "⚠️ JABIZ FLASH — SCANNER ERROR\n"
-                        f"{str(exc)[:300]}\n"
-                        "Paper engine remains running and will retry."
-                    )
+                    notifier.send("⚠️ JABIZ FLASH — SCANNER ERROR\n" + str(exc)[:300] + "\nPaper engine remains running and will retry.")
                     last_error_notice = now
 
             engine.save_state()
             write_status(engine)
-            metrics = engine.scan_metrics
-            api = engine.market_status
-            print(
-                f"[SCAN {cycle}] discovered={metrics['discovered']} "
-                f"qualified={metrics['qualified_entries']} open={len(engine.positions)} "
-                f"API={api.get('successful_requests', 0)}/{api.get('request_count', 0)} "
-                f"success | equity=${engine.equity:.2f}"
-            )
+            metrics, api = engine.scan_metrics, engine.market_status
+            print(f"[SCAN {cycle}] discovered={metrics['discovered']} qualified={metrics['qualified_entries']} "
+                  f"open={len(engine.positions)} API={api.get('successful_requests', 0)}/{api.get('request_count', 0)} "
+                  f"success | equity={engine.equity:.2f}")
             if deadline is not None and time.monotonic() >= deadline:
                 break
             stop_event.wait(max(1, int(cfg.get("poll_seconds", 5))))
-
     finally:
+        ended_at = time.time()
+        engine.log({"event": "paper_session", "time": ended_at, "started_at": started_at,
+                    "duration_seconds": round(ended_at - started_at, 2), "cycles": cycle,
+                    "scan_metrics": dict(engine.scan_metrics), "market_status": dict(engine.market_status),
+                    "open_positions": len(engine.positions), "equity": engine.equity})
         engine.save_state()
         write_status(engine)
         if status_server:
@@ -102,8 +95,8 @@ def main():
     win_rate = (stats["wins"] / closed * 100) if closed else 0.0
     notifier.send(
         f"📊 JABIZ FLASH — PAPER SESSION STOPPED\n"
-        f"Equity: ${engine.equity:.2f} (start ${cfg['starting_balance_usd']:.2f})\n"
-        f"Realized P&L: ${stats['realized_pnl']:+.2f}\n"
+        f"Equity: {engine.equity:.2f} USD (start {cfg['starting_balance_usd']:.2f})\n"
+        f"Realized P&L: {stats['realized_pnl']:+.2f} USD\n"
         f"Closed trades: {closed} | Wins: {stats['wins']} | Losses: {stats['losses']}\n"
         f"Win rate: {win_rate:.1f}% | Open positions: {len(engine.positions)}\n"
         "Mode: PAPER ONLY — no live orders"
