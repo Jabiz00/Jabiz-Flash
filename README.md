@@ -32,3 +32,7 @@ The static read-only dashboard fetches `dashboard/status.json` from this public 
 Python 3.10+: `pip install -e ".[dev]"` then `pytest -v`.
 
 No live execution module exists. A green test run validates only the included tests, not profitability or live readiness.
+
+
+## Always-on paper runtime
+See [docs/ALWAYS_ON_DEPLOYMENT.md](docs/ALWAYS_ON_DEPLOYMENT.md) for the Docker-based continuous runtime, local read-only dashboard/API, persistent paper state, restart policy, and deployment safety notes. The runtime remains paper-only; live execution is not implemented.
