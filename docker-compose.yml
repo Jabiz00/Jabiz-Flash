@@ -1,0 +1,25 @@
+services:
+  jabiz-flash:
+    build: .
+    container_name: jabiz-flash
+    restart: unless-stopped
+    init: true
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      JABIZ_STATUS_HOST: 0.0.0.0
+      JABIZ_STATUS_PORT: 8080
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    ports:
+      # Bind locally; put HTTPS reverse proxy / secure tunnel in front before public exposure.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - jabiz-data:/app/data
+      - jabiz-status:/app/dashboard
+    stop_grace_period: 30s
+
+volumes:
+  jabiz-data:
+  jabiz-status:
