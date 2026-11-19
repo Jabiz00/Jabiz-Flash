@@ -1,0 +1,49 @@
+
+name: Install Jabiz Flash ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract and install project
+        run: |
+          ZIP="Jabiz-Flash-Updated.zip"
+
+          if [ ! -f "$ZIP" ]; then
+            echo "ZIP file not found: $ZIP"
+            exit 1
+          fi
+
+          mkdir -p /tmp/jabiz-install
+          unzip -q "$ZIP" -d /tmp/jabiz-install
+
+          PROJECT_ROOT=$(dirname "$(find /tmp/jabiz-install -name pyproject.toml -print -quit)")
+
+          if [ ! -f "$PROJECT_ROOT/pyproject.toml" ]; then
+            echo "Could not locate project files."
+            exit 1
+          fi
+
+          rsync -a "$PROJECT_ROOT/" ./ \
+            --exclude='.git/' \
+            --exclude='Jabiz-Flash-Updated.zip'
+
+          rm "$ZIP"
+
+      - name: Commit installed project
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Install updated Jabiz Flash project" || echo "No changes to commit"
+          git push
