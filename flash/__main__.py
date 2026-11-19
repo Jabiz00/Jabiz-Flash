@@ -14,9 +14,21 @@ def main():
     print("JABIZ FLASH — PAPER ONLY; NO WALLET OR LIVE SWAPS")
     while time.time()<deadline:
         pairs=market.discover(cfg["search_terms"],cfg["max_tokens_to_track"]); now=time.time()
-        for pair in pairs: engine.update(pair_snapshot(pair),now)
+        engine.scan_metrics = engine.empty_scan_metrics()
+        for pair in pairs:
+            engine.update(pair_snapshot(pair), now)
+        engine.market_status = market.status()
         engine.save_state(); write_status(engine)
-        print(f"[SCAN] {len(pairs)} pairs | open {len(engine.positions)} | equity ${engine.equity:.2f}")
+        metrics = engine.scan_metrics
+        api = engine.market_status
+        print(
+            f"[SCAN] discovered={metrics['discovered']} qualified={metrics['qualified_entries']} "
+            f"open={len(engine.positions)} | liquidity_reject={metrics['rejected_liquidity']} "
+            f"volume_reject={metrics['rejected_volume']} flow_reject={metrics['rejected_flow']} "
+            f"age_reject={metrics['rejected_pair_age']} momentum_reject={metrics['rejected_momentum']} "
+            f"| API {api['successful_requests']}/{api['request_count']} successful "
+            f"| equity ${engine.equity:.2f}"
+        )
         time.sleep(cfg["poll_seconds"])
     engine.save_state(); write_status(engine)
     stats=engine.stats
