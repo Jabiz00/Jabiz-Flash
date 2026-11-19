@@ -15,7 +15,19 @@ class PaperEngine:
         self.ledger=self.data_dir/"paper_ledger.jsonl"; self.state_file=self.data_dir/"state.json"
         self.equity=float(cfg["starting_balance_usd"]); self.positions={}; self.history={}
         self.stats={"closed_trades":0,"wins":0,"losses":0,"realized_pnl":0.0}
+        self.scan_metrics = self.empty_scan_metrics()
+        self.market_status = {"provider": "DexScreener REST", "status": "not_started"}
         self.load_state()
+    @staticmethod
+    def empty_scan_metrics():
+        return {
+            "discovered": 0, "valid_price": 0, "invalid_price": 0,
+            "managed_positions": 0, "qualified_entries": 0,
+            "rejected_liquidity": 0, "rejected_volume": 0,
+            "rejected_flow": 0, "rejected_pair_age": 0,
+            "waiting_for_price_history": 0, "rejected_momentum": 0,
+            "blocked_position_limit": 0,
+        }
     def load_state(self):
         if not self.state_file.exists(): return
         try:
@@ -55,11 +67,16 @@ class PaperEngine:
     def update(self,snap,now=None):
         now=time.time() if now is None else now
         pair=snap.get("pair"); price=float(snap.get("price") or 0)
-        if not pair or price<=0: return
+        self.scan_metrics["discovered"] += 1
+        if not pair or price<=0:
+            self.scan_metrics["invalid_price"] += 1
+            return
+        self.scan_metrics["valid_price"] += 1
         samples=self.history.setdefault(pair,[]); samples.append([now,price])
         samples[:]=[[t,p] for t,p in samples if now-float(t)<=90]
         pos=self.positions.get(pair)
         if pos:
+            self.scan_metrics["managed_positions"] += 1
             pos.last_price=price
             pos.peak=max(pos.peak,price); age=now-pos.opened_at
             r=(price-pos.entry)/(pos.entry-pos.initial_stop) if pos.entry>pos.initial_stop else 0
@@ -73,13 +90,29 @@ class PaperEngine:
             elif r>=self.cfg["trail_after_r"]:
                 pos.stop=max(pos.stop,pos.peak*(1-self.cfg["trailing_drawdown_pct"]/100))
             return
-        if len(self.positions)>=self.cfg["max_positions"]: return
-        if snap.get("liquidity",0)<self.cfg["min_liquidity_usd"] or snap.get("volume24",0)<self.cfg["min_volume_24h_usd"]: return
-        if snap.get("buys5",0)<=snap.get("sells5",0) or snap.get("buys5",0)+snap.get("sells5",0)<4: return
+        if len(self.positions)>=self.cfg["max_positions"]:
+            self.scan_metrics["blocked_position_limit"] += 1
+            return
+        if snap.get("liquidity",0)<self.cfg["min_liquidity_usd"]:
+            self.scan_metrics["rejected_liquidity"] += 1
+            return
+        if snap.get("volume24",0)<self.cfg["min_volume_24h_usd"]:
+            self.scan_metrics["rejected_volume"] += 1
+            return
+        if snap.get("buys5",0)<=snap.get("sells5",0) or snap.get("buys5",0)+snap.get("sells5",0)<4:
+            self.scan_metrics["rejected_flow"] += 1
+            return
         created=snap.get("created_ms",0); age_min=(now*1000-created)/60000 if created else 10**9
-        if age_min<self.cfg["min_pair_age_minutes"]: return
+        if age_min<self.cfg["min_pair_age_minutes"]:
+            self.scan_metrics["rejected_pair_age"] += 1
+            return
         mom=self.momentum(samples)
-        if mom is None or mom<self.cfg["entry_momentum_pct"]: return
+        if mom is None:
+            self.scan_metrics["waiting_for_price_history"] += 1
+            return
+        if mom<self.cfg["entry_momentum_pct"]:
+            self.scan_metrics["rejected_momentum"] += 1
+            return
         stop=price*(1-self.cfg["stop_pct"]/100); budget=self.equity*self.cfg["risk_per_trade"]
         cost_rate=self.cfg["estimated_round_trip_cost_pct"]/100
         cost_unit=(price+stop)*cost_rate/2
@@ -89,6 +122,7 @@ class PaperEngine:
         pos=Position(pair,snap.get("token","UNKNOWN"),snap.get("address",""),price,qty,stop,target,
                      budget,now,price,snap.get("url",""),stop,price)
         self.positions[pair]=pos
+        self.scan_metrics["qualified_entries"] += 1
         self.log({"event":"paper_entry","time":now,"token":pos.token,"address":pos.address,"pair":pair,"entry":price,
           "stop":stop,"target":target,"risk_budget":budget,"quantity":qty,"momentum_pct":mom,"url":pos.url})
         contract=f"https://solscan.io/token/{pos.address}" if pos.address else "Unavailable"
@@ -141,4 +175,5 @@ class PaperEngine:
         return {"updated_at":now,"mode":"PAPER ONLY","equity":round(self.equity,4),
           "starting_balance":self.cfg["starting_balance_usd"],"open_positions":open_positions,
           "recent_trades":self.recent_trades(),"stats":self.stats,"risk_per_trade":self.cfg["risk_per_trade"],
-          "max_positions":self.cfg["max_positions"],"max_hold_seconds":self.cfg["max_hold_seconds"]}
+          "max_positions":self.cfg["max_positions"],"max_hold_seconds":self.cfg["max_hold_seconds"],
+          "scanner": {"metrics": self.scan_metrics, "api": self.market_status}}
