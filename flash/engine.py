@@ -91,7 +91,17 @@ class PaperEngine:
         self.positions[pair]=pos
         self.log({"event":"paper_entry","time":now,"token":pos.token,"address":pos.address,"pair":pair,"entry":price,
           "stop":stop,"target":target,"risk_budget":budget,"quantity":qty,"momentum_pct":mom,"url":pos.url})
-        self.notify(f"🟢 JABIZ FLASH PAPER ENTRY\n{pos.token}\nEntry ${price:.8g}\nSL ${stop:.8g}\nTP ${target:.8g}\nRisk ${budget:.2f}")
+        contract=f"https://solscan.io/token/{pos.address}" if pos.address else "Unavailable"
+        dex=pos.url or "Unavailable"
+        self.notify(
+            f"🟢 JABIZ FLASH — PAPER ENTRY\n"
+            f"Token: {pos.token}\n"
+            f"Entry: ${price:.8g}\nStop: ${stop:.8g}\n"
+            f"Target: ${target:.8g} ({self.cfg['target_r']:.2f}R)\n"
+            f"Risk budget: ${budget:.2f} | Size: {qty:.6g}\n"
+            f"Contract: {contract}\nPair: {dex}\n"
+            f"Mode: SIMULATED — no real order placed"
+        )
     def close(self,pair,price,reason,now):
         pos=self.positions.pop(pair); gross=(price-pos.entry)*pos.quantity
         rate=self.cfg["estimated_round_trip_cost_pct"]/100
@@ -102,7 +112,20 @@ class PaperEngine:
           "exit":price,"stop":pos.stop,"target":pos.target,"risk_budget":pos.risk_usd,"quantity":pos.quantity,
           "gross_pnl":gross,"estimated_costs":costs,"net_pnl":net,"equity":self.equity,
           "reason":reason,"holding_seconds":now-pos.opened_at,"url":pos.url})
-        self.notify(f"🔴 JABIZ FLASH PAPER EXIT\n{pos.token}\nExit ${price:.8g}\nNet ${net:+.2f}\n{reason}\nEquity ${self.equity:.2f}")
+        held=max(0,int(now-pos.opened_at))
+        r_multiple=net/pos.risk_usd if pos.risk_usd>0 else 0.0
+        contract=f"https://solscan.io/token/{pos.address}" if pos.address else "Unavailable"
+        self.notify(
+            f"🔴 JABIZ FLASH — PAPER EXIT\n"
+            f"Token: {pos.token}\n"
+            f"Entry: ${pos.entry:.8g} | Exit: ${price:.8g}\n"
+            f"Net P&L: ${net:+.2f} ({r_multiple:+.2f}R)\n"
+            f"Estimated costs: ${costs:.2f}\n"
+            f"Held: {held}s | Reason: {reason}\n"
+            f"Equity: ${self.equity:.2f}\n"
+            f"Contract: {contract}\n"
+            f"Mode: SIMULATED — no real order placed"
+        )
         self.save_state()
     def dashboard_status(self):
         now=time.time(); cost_rate=self.cfg["estimated_round_trip_cost_pct"]/100
