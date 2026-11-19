@@ -43,5 +43,7 @@ jobs:
             echo "No state changes to save."
           else
             git commit -m "Update Jabiz Flash paper trading state"
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
