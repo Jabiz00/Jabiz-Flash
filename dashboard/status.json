@@ -1,5 +1,5 @@
 {
-  "updated_at": 1795085340.3767033,
+  "updated_at": 1795115692.9613504,
   "mode": "PAPER ONLY",
   "equity": 100.0,
   "starting_balance": 100.0,
@@ -17,16 +17,16 @@
   "scanner": {
     "metrics": {
       "discovered": 80,
-      "valid_price": 78,
-      "invalid_price": 2,
+      "valid_price": 79,
+      "invalid_price": 1,
       "managed_positions": 0,
       "qualified_entries": 0,
-      "rejected_liquidity": 38,
-      "rejected_volume": 28,
-      "rejected_flow": 11,
+      "rejected_liquidity": 44,
+      "rejected_volume": 23,
+      "rejected_flow": 6,
       "rejected_pair_age": 0,
       "waiting_for_price_history": 0,
-      "rejected_momentum": 1,
+      "rejected_momentum": 6,
       "blocked_position_limit": 0
     },
     "api": {
@@ -34,12 +34,12 @@
       "request_count": 8,
       "successful_requests": 8,
       "failed_requests": 0,
-      "last_success_at": 1795085335.2459588,
+      "last_success_at": 1795115687.826951,
       "last_error": "",
       "terms_searched": 8,
       "pairs_returned": 80,
       "last_http_status": 200,
-      "last_scan_at": 1795085335.3666718,
+      "last_scan_at": 1795115687.947647,
       "cycle": 38
     }
   }
