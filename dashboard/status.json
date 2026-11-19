@@ -1,0 +1,17 @@
+{
+  "updated_at": 1795057237.1230795,
+  "mode": "PAPER ONLY",
+  "equity": 100.0,
+  "starting_balance": 100.0,
+  "open_positions": [],
+  "recent_trades": [],
+  "stats": {
+    "closed_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "realized_pnl": 0.0
+  },
+  "risk_per_trade": 0.01,
+  "max_positions": 10,
+  "max_hold_seconds": 300
+}
