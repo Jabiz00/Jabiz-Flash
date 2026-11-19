@@ -6,7 +6,7 @@ from dataclasses import dataclass, asdict
 class Position:
     pair:str; token:str; address:str; entry:float; quantity:float; stop:float
     target:float; risk_usd:float; opened_at:float; peak:float
-    url:str=""; initial_stop:float=0.0
+    url:str=""; initial_stop:float=0.0; last_price:float=0.0
 
 class PaperEngine:
     def __init__(self,cfg,data_dir="data",notifier=None):
@@ -32,6 +32,20 @@ class PaperEngine:
         tmp=self.state_file.with_suffix(".tmp"); tmp.write_text(json.dumps(s,indent=2)); tmp.replace(self.state_file)
     def log(self,event):
         with self.ledger.open("a",encoding="utf-8") as f: f.write(json.dumps(event)+"\n")
+    def recent_trades(self,limit=30):
+        events=[]
+        if self.ledger.exists():
+            try:
+                with self.ledger.open(encoding="utf-8") as f:
+                    for line in f:
+                        try:
+                            event=json.loads(line)
+                            if event.get("event")=="paper_exit": events.append(event)
+                        except (ValueError,TypeError):
+                            continue
+            except OSError:
+                pass
+        return list(reversed(events[-limit:]))
     def notify(self,msg):
         if self.notifier: self.notifier.send(msg)
     @staticmethod
@@ -46,6 +60,7 @@ class PaperEngine:
         samples[:]=[[t,p] for t,p in samples if now-float(t)<=90]
         pos=self.positions.get(pair)
         if pos:
+            pos.last_price=price
             pos.peak=max(pos.peak,price); age=now-pos.opened_at
             r=(price-pos.entry)/(pos.entry-pos.initial_stop) if pos.entry>pos.initial_stop else 0
             mom=self.momentum(samples); reason=None
@@ -72,9 +87,9 @@ class PaperEngine:
         if budget<=0 or risk_unit<=0: return
         qty=budget/risk_unit; target=price+self.cfg["target_r"]*(price-stop)
         pos=Position(pair,snap.get("token","UNKNOWN"),snap.get("address",""),price,qty,stop,target,
-                     budget,now,price,snap.get("url",""),stop)
+                     budget,now,price,snap.get("url",""),stop,price)
         self.positions[pair]=pos
-        self.log({"event":"paper_entry","time":now,"token":pos.token,"pair":pair,"entry":price,
+        self.log({"event":"paper_entry","time":now,"token":pos.token,"address":pos.address,"pair":pair,"entry":price,
           "stop":stop,"target":target,"risk_budget":budget,"quantity":qty,"momentum_pct":mom,"url":pos.url})
         self.notify(f"🟢 JABIZ FLASH PAPER ENTRY\n{pos.token}\nEntry ${price:.8g}\nSL ${stop:.8g}\nTP ${target:.8g}\nRisk ${budget:.2f}")
     def close(self,pair,price,reason,now):
@@ -83,13 +98,24 @@ class PaperEngine:
         costs=(pos.entry+price)*pos.quantity*rate/2; net=gross-costs
         self.equity+=net; self.stats["closed_trades"]+=1
         self.stats["wins" if net>0 else "losses"]+=1; self.stats["realized_pnl"]+=net
-        self.log({"event":"paper_exit","time":now,"token":pos.token,"pair":pair,"entry":pos.entry,
-          "exit":price,"gross_pnl":gross,"estimated_costs":costs,"net_pnl":net,"equity":self.equity,
+        self.log({"event":"paper_exit","time":now,"token":pos.token,"address":pos.address,"pair":pair,"entry":pos.entry,
+          "exit":price,"stop":pos.stop,"target":pos.target,"risk_budget":pos.risk_usd,"quantity":pos.quantity,
+          "gross_pnl":gross,"estimated_costs":costs,"net_pnl":net,"equity":self.equity,
           "reason":reason,"holding_seconds":now-pos.opened_at,"url":pos.url})
         self.notify(f"🔴 JABIZ FLASH PAPER EXIT\n{pos.token}\nExit ${price:.8g}\nNet ${net:+.2f}\n{reason}\nEquity ${self.equity:.2f}")
         self.save_state()
     def dashboard_status(self):
-        return {"updated_at":time.time(),"mode":"PAPER ONLY","equity":round(self.equity,4),
-          "starting_balance":self.cfg["starting_balance_usd"],"open_positions":[asdict(p) for p in self.positions.values()],
-          "stats":self.stats,"risk_per_trade":self.cfg["risk_per_trade"],
+        now=time.time(); cost_rate=self.cfg["estimated_round_trip_cost_pct"]/100
+        open_positions=[]
+        for p in self.positions.values():
+            current=p.last_price or p.entry
+            gross=(current-p.entry)*p.quantity
+            estimated_costs=(p.entry+current)*p.quantity*cost_rate/2
+            open_positions.append({**asdict(p),"held_seconds":max(0,int(now-p.opened_at)),
+                "current_price":current,"unrealized_pnl":gross-estimated_costs,
+                "contract_url":f"https://solscan.io/token/{p.address}" if p.address else "",
+                "dex_url":p.url})
+        return {"updated_at":now,"mode":"PAPER ONLY","equity":round(self.equity,4),
+          "starting_balance":self.cfg["starting_balance_usd"],"open_positions":open_positions,
+          "recent_trades":self.recent_trades(),"stats":self.stats,"risk_per_trade":self.cfg["risk_per_trade"],
           "max_positions":self.cfg["max_positions"],"max_hold_seconds":self.cfg["max_hold_seconds"]}
