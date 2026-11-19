@@ -37,7 +37,6 @@ class DexScreener:
             payload = response.json()
             self.metrics["successful_requests"] += 1
             self.metrics["last_success_at"] = time.time()
-            self.metrics["last_error"] = ""
             return [
                 pair for pair in (payload.get("pairs") or [])
                 if (pair.get("chainId") or "").lower() == "solana"
