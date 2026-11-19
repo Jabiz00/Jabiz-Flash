@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: jabiz-flash-paper
+  group: jabiz-flash-validation-data
   cancel-in-progress: false
 
 jobs:
@@ -19,21 +19,19 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
       - name: Install project
         run: pip install -e .
-
+      - name: Initialize 14-day validation window
+        run: python scripts/validation.py init
       - name: Run paper trading session
         env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: \${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: \${{ secrets.TELEGRAM_CHAT_ID }}
         run: python -m flash --duration-seconds 230
-
       - name: Save paper-trading state
         run: |
           git config user.name "github-actions[bot]"
