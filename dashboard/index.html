@@ -1,32 +1,98 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Jabiz Flash</title>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#080d18">
+<title>Jabiz Flash | Execution Terminal</title>
 <style>
-:root{color-scheme:dark;--bg:#0b1020;--panel:#141d32;--muted:#91a0b8;--line:#27334c;--green:#35d49a}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#eef3ff;font:15px system-ui,sans-serif}main{max-width:1050px;margin:auto;padding:24px}
-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}h1{margin:0;font-size:26px}.muted{color:var(--muted)}
-.pill{border:1px solid #276e59;color:var(--green);padding:6px 10px;border-radius:30px;font-size:12px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin:22px 0}
-.card,section{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}.k{color:var(--muted);font-size:12px}.v{font-size:25px;font-weight:700;margin-top:8px}
-section{margin-top:14px;overflow:auto}h2{font-size:17px;margin:0 0 14px}table{width:100%;border-collapse:collapse;min-width:520px}
-td,th{text-align:left;padding:11px 8px;border-bottom:1px solid var(--line);font-size:13px}th{color:var(--muted)}footer{color:var(--muted);font-size:12px;margin:20px 0}
-</style></head><body><main><header><div><h1>JABIZ FLASH</h1><div class="muted">Solana paper-trading monitor</div></div><span class="pill">PAPER ONLY · NO LIVE TRADING</span></header>
-<div class="grid">
-<div class="card"><div class="k">Virtual equity</div><div class="v" id="equity">—</div></div>
-<div class="card"><div class="k">Realized P&amp;L</div><div class="v" id="pnl">—</div></div>
-<div class="card"><div class="k">Closed trades</div><div class="v" id="trades">—</div></div>
-<div class="card"><div class="k">Win rate</div><div class="v" id="winrate">—</div></div>
-<div class="card"><div class="k">Open positions</div><div class="v" id="open">—</div></div>
-<div class="card"><div class="k">Risk / trade</div><div class="v" id="risk">—</div></div></div>
-<section><h2>Open positions</h2><table><thead><tr><th>Token</th><th>Entry</th><th>Stop</th><th>Target</th><th>Risk budget</th></tr></thead><tbody id="positions"><tr><td colspan="5">Waiting…</td></tr></tbody></table></section>
-<section><h2>System status</h2><div id="status" class="muted">Loading…</div></section><footer>Read-only dashboard. Simulated prices are not executable quotes. Refreshes every 30 seconds.</footer></main>
+:root{color-scheme:dark;--bg:#080d18;--panel:#101a2b;--panel2:#0c1524;--line:#1d2b40;--muted:#8495ad;--text:#e9f0fb;--green:#27d69a;--red:#ff657a;--blue:#72a7ff;--amber:#f4bd62}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 15% -15%,#142744 0,transparent 42%),var(--bg);color:var(--text);font:14px Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1440px;margin:auto;padding:22px 26px 34px}.top{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:8px 0 20px;border-bottom:1px solid var(--line);flex-wrap:wrap}.brand{display:flex;align-items:center;gap:13px}.mark{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#1fce9a,#168c83);display:grid;place-items:center;color:#061b1a;font-weight:950;font-size:19px;box-shadow:0 8px 28px #16b98b30}.brand h1{font-size:20px;letter-spacing:2px;margin:0;font-weight:850}.sub{color:var(--muted);font-size:11px;letter-spacing:1.5px;margin-top:4px}.righthead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.status{display:inline-flex;align-items:center;gap:8px;border:1px solid #17674f;background:#0c2825;color:var(--green);border-radius:30px;padding:8px 12px;font-size:11px;font-weight:800;letter-spacing:.7px}.dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}.readonly{font-size:11px;color:var(--amber);border:1px solid #70572c;background:#261e12;padding:8px 11px;border-radius:30px;font-weight:700}
+nav{display:flex;gap:22px;padding:15px 2px;color:var(--muted);font-size:11px;letter-spacing:1px;text-transform:uppercase}nav a{color:inherit;text-decoration:none}nav a:first-child{color:var(--text)}
+.eyebrow{color:var(--muted);font-size:10px;letter-spacing:1.8px;text-transform:uppercase;font-weight:750}.heading{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:10px 0 15px}.heading h2{font-size:18px;margin:5px 0 0}.timestamp{color:var(--muted);font-size:11px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.card,.panel{background:linear-gradient(150deg,#121e31,#0e1727);border:1px solid var(--line);border-radius:13px;box-shadow:0 8px 28px #0002}.card{padding:16px;min-height:112px}.metric-label{font-size:11px;color:var(--muted);letter-spacing:.5px}.metric-value{font-size:27px;font-weight:780;letter-spacing:-.8px;margin-top:12px;font-variant-numeric:tabular-nums}.metric-foot{font-size:10px;color:var(--muted);margin-top:5px}.positive{color:var(--green)}.negative{color:var(--red)}
+.layout{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(270px,.8fr);gap:13px;margin-top:14px}.panel{padding:17px;min-width:0}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:15px}.panel h3{margin:0;font-size:13px;letter-spacing:.3px}.tag{font-size:10px;color:var(--muted);border:1px solid var(--line);padding:5px 8px;border-radius:20px}
+table{width:100%;border-collapse:collapse;white-space:nowrap}th{text-align:left;color:var(--muted);font-size:9px;letter-spacing:1px;text-transform:uppercase;font-weight:700;padding:10px 9px;border-bottom:1px solid var(--line)}td{padding:13px 9px;border-bottom:1px solid #1b293c;font-size:11px;font-variant-numeric:tabular-nums}tbody tr:last-child td{border-bottom:0}.token{font-weight:800;color:var(--text)}.empty{text-align:center;color:var(--muted);padding:30px 10px;white-space:normal}
+.side-stack{display:grid;gap:13px;align-content:start}.system-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid #1b293c;font-size:11px}.system-row:last-child{border:0}.system-row span:first-child{color:var(--muted)}.value{font-weight:700;text-align:right}.green{color:var(--green)}.amber{color:var(--amber)}
+.capacity{height:6px;border-radius:9px;background:#202d40;overflow:hidden;margin-top:12px}.capacity>div{height:100%;background:linear-gradient(90deg,#168e78,#31d7a0);width:0%;transition:width .3s}.riskline{display:flex;justify-content:space-between;color:var(--muted);font-size:10px;margin-top:8px}
+.notice{border:1px solid #594725;background:#211b12;color:#d9bd83;padding:12px 14px;border-radius:10px;font-size:11px;line-height:1.6;margin-top:14px}
+footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;color:#71829b;font-size:10px;margin-top:20px;padding-top:15px;border-top:1px solid var(--line)}
+@media(max-width:900px){.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.layout{grid-template-columns:1fr}}
+@media(max-width:520px){main{padding:15px 12px 25px}.brand h1{font-size:17px}.metric-value{font-size:23px}.card{padding:13px;min-height:100px}.panel{padding:13px}nav{gap:15px;font-size:10px}.timestamp{max-width:125px;text-align:right}}
+</style>
+</head>
+<body>
+<main>
+<header class="top">
+ <div class="brand"><div class="mark">J</div><div><h1>JABIZ FLASH</h1><div class="sub">SOLANA · FLASH EXECUTION TERMINAL</div></div></div>
+ <div class="righthead"><span class="status"><i class="dot"></i> PAPER ENGINE</span><span class="readonly">SIMULATION ONLY · LIVE TRADING DISABLED</span></div>
+</header>
+<nav><a href="#overview">Overview</a><a href="#positions">Positions</a><a href="#performance">Performance</a><a href="#system">System</a></nav>
+<section id="overview">
+ <div class="heading"><div><div class="eyebrow">Account overview</div><h2>Trading performance</h2></div><div class="timestamp" id="updated">Awaiting first engine update</div></div>
+ <div class="metrics">
+  <article class="card"><div class="metric-label">VIRTUAL EQUITY</div><div class="metric-value" id="equity">$100.00</div><div class="metric-foot">Starting simulation balance</div></article>
+  <article class="card"><div class="metric-label">REALIZED P&amp;L</div><div class="metric-value" id="pnl">$0.00</div><div class="metric-foot">Closed-trade net result</div></article>
+  <article class="card"><div class="metric-label">WIN RATE</div><div class="metric-value" id="winrate">—</div><div class="metric-foot" id="wins">No closed trades yet</div></article>
+  <article class="card"><div class="metric-label">CLOSED TRADES</div><div class="metric-value" id="trades">0</div><div class="metric-foot" id="wl">Wins / losses: 0 / 0</div></article>
+ </div>
+</section>
+<div class="layout">
+ <section class="panel" id="positions">
+  <div class="panel-head"><h3>OPEN POSITIONS</h3><span class="tag" id="slots">0 / 10 SLOTS</span></div>
+  <div style="overflow-x:auto"><table><thead><tr><th>Asset</th><th>Entry</th><th>Stop</th><th>Target</th><th>Risk budget</th><th>Peak seen</th></tr></thead><tbody id="positionRows"><tr><td class="empty" colspan="6">No open positions. Waiting for qualified paper entries.</td></tr></tbody></table></div>
+  <div class="capacity"><div id="capacityBar"></div></div><div class="riskline"><span>Position capacity</span><span id="capacityText">0% used</span></div>
+ </section>
+ <div class="side-stack">
+  <section class="panel" id="performance"><div class="panel-head"><h3>STRATEGY PARAMETERS</h3><span class="tag">CONFIGURED</span></div>
+   <div class="system-row"><span>Risk per trade</span><b class="value" id="risk">1.0%</b></div>
+   <div class="system-row"><span>Maximum positions</span><b class="value" id="maxpos">10</b></div>
+   <div class="system-row"><span>Maximum hold</span><b class="value" id="hold">300 sec</b></div>
+   <div class="system-row"><span>Target model</span><b class="value">2R baseline</b></div>
+   <div class="system-row"><span>Execution mode</span><b class="value green">Paper only</b></div>
+  </section>
+  <section class="panel" id="system"><div class="panel-head"><h3>SYSTEM MONITOR</h3><span class="tag" id="health">WAITING</span></div>
+   <div class="system-row"><span>Engine status</span><b class="value amber" id="engineStatus">Waiting for data</b></div>
+   <div class="system-row"><span>Last data update</span><b class="value" id="lastUpdate">—</b></div>
+   <div class="system-row"><span>Dashboard refresh</span><b class="value">30 seconds</b></div>
+   <div class="system-row"><span>Data source</span><b class="value">DexScreener snapshots</b></div>
+  </section>
+ </div>
+</div>
+<div class="notice"><strong>Simulation notice:</strong> This dashboard reports paper-trading data only. Market snapshots are not executable quotes. GitHub scheduled sessions are intermittent and do not provide continuous seconds-level monitoring. No live wallet or order execution is connected.</div>
+<footer><span>JABIZ FLASH · PRIVATE PAPER-TRADING MONITOR</span><span>Read-only interface · Auto-refresh every 30 seconds</span></footer>
+</main>
 <script>
 const source='https://raw.githubusercontent.com/Jabiz00/Jabiz-Flash/main/dashboard/status.json';
-async function refresh(){try{const r=await fetch(source+'?t='+Date.now());if(!r.ok)throw Error('No status published yet');
-const d=await r.json(),s=d.stats||{},money=n=>'$'+Number(n||0).toFixed(2),wr=s.closed_trades?100*s.wins/s.closed_trades:0;
-document.getElementById('equity').textContent=money(d.equity);document.getElementById('pnl').textContent=money(s.realized_pnl);
-document.getElementById('trades').textContent=s.closed_trades||0;document.getElementById('winrate').textContent=wr.toFixed(1)+'%';
-document.getElementById('open').textContent=(d.open_positions||[]).length+' / '+d.max_positions;
-document.getElementById('risk').textContent=(100*d.risk_per_trade).toFixed(1)+'%';
-document.getElementById('positions').innerHTML=(d.open_positions||[]).map(p=>`<tr><td>${p.token}</td><td>${p.entry}</td><td>${p.stop}</td><td>${p.target}</td><td>${money(p.risk_usd)}</td></tr>`).join('')||'<tr><td colspan="5">No open positions</td></tr>';
-document.getElementById('status').textContent='Last update: '+new Date(d.updated_at*1000).toLocaleString()+' · '+d.mode;
-}catch(e){document.getElementById('status').textContent=e.message;}}refresh();setInterval(refresh,30000);
-</script></body></html>
+const $=id=>document.getElementById(id);
+const money=n=>'$'+Number(n||0).toFixed(2);
+const price=n=>{const v=Number(n||0);return v===0?'—':v.toLocaleString(undefined,{maximumSignificantDigits:8});};
+function setText(id,value){$(id).textContent=value;}
+function renderPositions(items){
+ const body=$('positionRows');body.replaceChildren();
+ if(!items.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.className='empty';td.textContent='No open positions. Waiting for qualified paper entries.';tr.append(td);body.append(tr);return;}
+ for(const p of items){const tr=document.createElement('tr');const values=[p.token||'UNKNOWN',price(p.entry),price(p.stop),price(p.target),money(p.risk_usd),price(p.peak)];values.forEach((v,i)=>{const td=document.createElement('td');td.textContent=v;if(i===0)td.className='token';tr.append(td);});body.append(tr);}
+}
+async function refresh(){
+ try{
+  const response=await fetch(source+'?t='+Date.now(),{cache:'no-store'});if(!response.ok)throw new Error('Status file not published yet');
+  const d=await response.json(),s=d.stats||{},positions=Array.isArray(d.open_positions)?d.open_positions:[];
+  const closed=Number(s.closed_trades||0),wins=Number(s.wins||0),losses=Number(s.losses||0),wr=closed?wins/closed*100:0,max=Number(d.max_positions||10),count=positions.length;
+  setText('equity',money(d.equity));setText('pnl',(Number(s.realized_pnl||0)>=0?'+':'')+money(s.realized_pnl));$('pnl').className='metric-value '+(Number(s.realized_pnl||0)>=0?'positive':'negative');
+  setText('winrate',closed?wr.toFixed(1)+'%':'—');setText('wins',closed?wins+' winning trades':'No closed trades yet');
+  setText('trades',closed);setText('wl','Wins / losses: '+wins+' / '+losses);
+  setText('slots',count+' / '+max+' SLOTS');setText('risk',(Number(d.risk_per_trade||0)*100).toFixed(1)+'%');setText('maxpos',max);setText('hold',Number(d.max_hold_seconds||0)+' sec');
+  const pct=max?Math.min(100,count/max*100):0;$('capacityBar').style.width=pct+'%';setText('capacityText',pct.toFixed(0)+'% used');
+  renderPositions(positions);
+  const date=new Date(Number(d.updated_at||0)*1000);const valid=Number.isFinite(date.getTime())&&Number(d.updated_at)>0;
+  setText('updated',valid?'Updated '+date.toLocaleString():'Update time unavailable');setText('lastUpdate',valid?date.toLocaleTimeString():'—');
+  const age=valid?(Date.now()/1000-Number(d.updated_at)):Infinity,healthy=age<600;
+  setText('engineStatus',healthy?'Recent data received':'Data is stale');$('engineStatus').className='value '+(healthy?'green':'amber');
+  setText('health',healthy?'DATA RECENT':'CHECK DATA');$('health').style.color=healthy?'var(--green)':'var(--amber)';
+ }catch(error){setText('engineStatus','Awaiting first run');setText('health','NO DATA');$('health').style.color='var(--amber)';setText('updated',error.message);}
+}
+refresh();setInterval(refresh,30000);
+</script>
+</body>
+</html>
