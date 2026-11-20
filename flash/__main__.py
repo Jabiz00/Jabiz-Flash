@@ -26,6 +26,16 @@ def main():
     assessor = SolanaTokenAssessor()
     engine = PaperEngine(cfg, notifier=notifier, safety_provider=assessor.assess)
     market = DexScreener()
+    # Carry the last confirmed market response across short GitHub Actions sessions.
+    try:
+        import json
+        with open("dashboard/status.json", encoding="utf-8") as previous:
+            prior = json.load(previous)
+        prior_success = (prior.get("scanner") or {}).get("api", {}).get("last_success_at")
+        if prior_success:
+            market.metrics["last_success_at"] = float(prior_success)
+    except (OSError, ValueError, TypeError):
+        pass
     stop_event = threading.Event()
     started_at = time.time()
 
