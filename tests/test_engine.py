@@ -138,10 +138,10 @@ def test_position_persists_hybrid_metadata(tmp_path):
     assert loaded.positions["p1"].safety_status == "PASS"
 
 
-def test_transaction_counts_are_not_misreported_as_buy_pressure_ratio(tmp_path):
+def test_buy_pressure_ratio_uses_transaction_counts_not_usd_volume(tmp_path):
     e = make_engine(cfg(), tmp_path)
     candidate = snap(102)
     candidate.pop("buy_pressure_ratio")
     metrics = e._market_metrics(candidate, [[1, 100], [2, 101], [3, 102]])
-    assert metrics["buy_pressure_ratio"] == 0.0
+    assert round(metrics["buy_pressure_ratio"], 4) == round(10 / 12, 4)
     assert metrics["volume_velocity_ratio"] == 2.0
