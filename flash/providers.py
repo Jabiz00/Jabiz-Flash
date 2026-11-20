@@ -22,6 +22,7 @@ class SolanaTokenAssessor:
         self.timeout = timeout
         self.session = session or requests.Session()
         self._cache = {}
+        self._last_jupiter_request = 0.0
         self.metrics = {"provider":"Solana RPC + RugCheck + Jupiter quote",
             "checks":0,"success":0,"failed":0,"last_success_at":None,
             "last_error":"","rpc":"configured" if self.rpc_url else "missing",
@@ -123,6 +124,11 @@ class SolanaTokenAssessor:
         if raw_amount <= 0:
             raise ValueError("Quote amount rounds to zero")
         headers = {"x-api-key":self.jupiter_api_key} if self.jupiter_api_key else {}
+        min_interval = 1.1 if self.jupiter_api_key else 2.1
+        wait = min_interval - (time.monotonic() - self._last_jupiter_request)
+        if wait > 0:
+            time.sleep(wait)
+        self._last_jupiter_request = time.monotonic()
         data = self._get(JUPITER_ORDER, params={
             "inputMint":mint,"outputMint":SOL_MINT,"amount":str(raw_amount)
         }, headers=headers)
@@ -142,7 +148,7 @@ class SolanaTokenAssessor:
             raise ValueError("Token mint address missing")
         key = (mint, round(float(notional_usd), 2))
         cached = self._cache.get(key)
-        if cached and float(now) - cached["checked_at"] <= 30:
+        if cached and float(now) - cached["checked_at"] <= 15:
             return dict(cached)
         self.metrics["checks"] += 1
         try:
