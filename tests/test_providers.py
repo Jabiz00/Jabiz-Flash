@@ -103,6 +103,7 @@ def test_failed_mint_assessment_is_temporarily_cooled_down():
 
     class AlwaysLimitedSession(FakeSession):
         def post(self, url, json, timeout):
+            self.calls.append(("rpc_429", url, json["method"]))
             response = type("RateLimitedResponse", (), {
                 "status_code": 429, "headers": {"Retry-After": "30"}})()
             raise requests.HTTPError("429 Too Many Requests", response=response)
