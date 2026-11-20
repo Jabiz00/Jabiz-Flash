@@ -101,7 +101,7 @@ def pair_snapshot(pair):
         "liquidity":_num((pair.get("liquidity") or {}).get("usd")),
         "volume24":_num(volume.get("h24")), "volume1h":_num(volume.get("h1")),
         "buys5":buys5, "sells5":sells5,
-        "buy_volume_ratio":None, "volume_acceleration":None,
+        "buy_pressure_ratio":None, "volume_velocity_ratio":None,
         "execution_impact_pct":None,
         "created_ms":int(_num(pair.get("pairCreatedAt"))),
         "url":pair.get("url") or "",
