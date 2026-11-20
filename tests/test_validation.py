@@ -24,6 +24,7 @@ def test_init_restarts_validation_when_strategy_version_changes(tmp_path, monkey
     meta=tmp_path/"validation.json"
     monkeypatch.setattr(validation,"DATA",tmp_path)
     monkeypatch.setattr(validation,"META",meta)
+    monkeypatch.setattr(validation,"REPORTS",tmp_path/"reports")
     old={"started_at":1,"started_at_utc":"old","duration_days":14,"mode":"PAPER ONLY"}
     meta.write_text(__import__("json").dumps(old))
     current=validation.init()
