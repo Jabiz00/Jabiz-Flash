@@ -54,6 +54,7 @@ class PaperEngine:
             "rejected_safety": 0, "rejected_score": 0,
             "rejected_execution": 0, "rejected_setup": 0,
             "rejected_transactions": 0, "ranked_candidates": 0,
+            "provider_shortlist": 0, "provider_candidates_deferred": 0,
         }
 
     def load_state(self):
