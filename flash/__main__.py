@@ -10,6 +10,7 @@ from .engine import PaperEngine
 from .notify import TelegramNotifier
 from .dashboard import write_status
 from .web import start_status_server
+from .providers import SolanaTokenAssessor
 
 
 def main():
@@ -22,7 +23,8 @@ def main():
 
     cfg = load_config()
     notifier = TelegramNotifier()
-    engine = PaperEngine(cfg, notifier=notifier)  # Strict safety fails closed until verified provider adapters are configured.
+    assessor = SolanaTokenAssessor()
+    engine = PaperEngine(cfg, notifier=notifier, safety_provider=assessor.assess)
     market = DexScreener()
     stop_event = threading.Event()
     started_at = time.time()
@@ -60,14 +62,14 @@ def main():
                         print(f"[scanner] skipped malformed pair: {exc}")
                 engine.process_scan(snapshots, now)
                 engine.market_status = market.status()
-                engine.market_status["safety_provider"] = "NOT_CONFIGURED_FAIL_CLOSED"
-                engine.market_status["execution_impact_source"] = "NOT_CONFIGURED_FAIL_CLOSED"
+                engine.market_status["safety_provider"] = assessor.status()
+                engine.market_status["execution_impact_source"] = "Jupiter read-only sell quote"
                 engine.market_status["last_scan_at"] = now
                 engine.market_status["cycle"] = cycle
             except Exception as exc:
                 now = time.time()
                 engine.market_status = market.status()
-                engine.market_status.update({"runtime_error": str(exc)[:240], "last_scan_at": now, "cycle": cycle})
+                engine.market_status.update({"safety_provider":assessor.status(), "runtime_error": str(exc)[:240], "last_scan_at": now, "cycle": cycle})
                 print(f"[scanner] cycle {cycle} failed: {exc}")
                 if now - last_error_notice >= 300:
                     notifier.send("⚠️ JABIZ FLASH — SCANNER ERROR\n" + str(exc)[:300] + "\nPaper engine remains running and will retry.")
