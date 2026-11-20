@@ -118,9 +118,11 @@ class PaperEngine:
         momentum = self.momentum(samples)
         buys, sells = self._safe_float(snap.get("buys5")), self._safe_float(snap.get("sells5"))
         count = buys + sells
+        # Transaction-count imbalance is a separate hard filter; never label it
+        # as USD buy-volume ratio. Missing USD flow remains unknown/zero-scored.
         buy_ratio = snap.get("buy_volume_ratio")
-        if buy_ratio is None and count > 0:
-            buy_ratio = buys / count
+        if buy_ratio is None:
+            buy_ratio = 0.0
         acceleration = snap.get("volume_acceleration")
         if acceleration is None:
             h1 = self._safe_float(snap.get("volume1h"))
