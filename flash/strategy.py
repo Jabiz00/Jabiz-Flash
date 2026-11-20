@@ -49,6 +49,10 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
     setup = min(1.0, max(0.0, _number(metrics, "setup_confirmation")))
     raw_impact = metrics.get("execution_impact_pct")
     impact = _number(metrics, "execution_impact_pct", 999.0)
+    try:
+        impact_available = raw_impact is not None and isfinite(float(raw_impact))
+    except (TypeError, ValueError, OverflowError):
+        impact_available = False
     impact_limit = max(0.01, _number({"v": execution_impact_limit_pct}, "v", 1.0))
 
     market_points = min(12.5, liquidity / 15000 * 12.5) + min(12.5, volume / 30000 * 12.5)
@@ -58,7 +62,7 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
 
     if liquidity < 15000: reasons.append("liquidity_below_experimental_floor")
     if volume < 30000: reasons.append("volume_below_experimental_floor")
-    if raw_impact is None: reasons.append("execution_impact_unavailable")
+    if not impact_available: reasons.append("execution_impact_unavailable")
     elif impact < 0 or impact > impact_limit: reasons.append("estimated_price_impact_too_high")
     model = detect_entry_model(metrics)
     if model: signals.append("setup:" + model)
