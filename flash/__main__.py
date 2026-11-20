@@ -25,6 +25,8 @@ def main():
     notifier = TelegramNotifier()
     assessor = SolanaTokenAssessor()
     engine = PaperEngine(cfg, notifier=notifier, safety_provider=assessor.assess)
+    # Publish real provider configuration/health even before the first token qualifies.
+    engine.provider_status = assessor.status()
     market = DexScreener()
     # Carry the last confirmed market response across short GitHub Actions sessions.
     try:
@@ -72,6 +74,7 @@ def main():
                         engine.scan_metrics["invalid_price"] += 1
                         print(f"[scanner] skipped malformed pair: {exc}")
                 engine.process_scan(snapshots, now)
+                engine.provider_status = assessor.status()
                 engine.market_status = market.status()
                 engine.market_status["safety_provider"] = assessor.status()
                 engine.market_status["execution_impact_source"] = "Jupiter read-only sell quote"
@@ -79,6 +82,7 @@ def main():
                 engine.market_status["cycle"] = cycle
             except Exception as exc:
                 now = time.time()
+                engine.provider_status = assessor.status()
                 engine.market_status = market.status()
                 engine.market_status.update({"safety_provider":assessor.status(), "runtime_error": str(exc)[:240], "last_scan_at": now, "cycle": cycle})
                 print(f"[scanner] cycle {cycle} failed: {exc}")
