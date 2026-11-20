@@ -16,7 +16,7 @@
 3. **RugCheck summary** supplies risk levels; critical/high/danger or unknown risk levels reject.
 4. **Jupiter Swap API v2 /order** requests a size-specific token-to-SOL sell quote only. The bot reads route availability and priceImpactPct; it never asks for a taker transaction or submits an order.
 
-Provider errors, stale/missing fields, missing sell route, malformed responses, and unsupported Token-2022 extensions fail closed. Jupiter quote calls are throttled to 0.5 requests/second without a key and 1 request/second with a configured key. Provider checks are limited to the best six pre-ranked candidates per scan to respect upstream limits.
+Provider errors, stale/missing fields, missing sell route, malformed responses, and unsupported Token-2022 extensions fail closed. Cached sell quotes are keyed by mint, simulated notional, and the observed token price so a changed price forces a new quote. Jupiter quote calls are throttled to 0.5 requests/second without a key and 1 request/second with a configured key. Provider checks are limited to the best six pre-ranked candidates per scan to respect upstream limits.
 
 ### Concentration caveat
 The provider aggregates wallet owners represented in Solana's ten largest token accounts. This is an estimate from the RPC largest-account response, not a full token-account index of every wallet. It can miss secondary accounts belonging to the same wallet. LP/pool vaults can also appear as large accounts and cause conservative rejection.
@@ -25,7 +25,7 @@ The provider aggregates wallet owners represented in Solana's ten largest token 
 Any reported mint extensions are rejected until each extension is explicitly reviewed and added to an allowlist. This may exclude otherwise legitimate Token-2022 tokens by design.
 
 ## Data freshness and runtime
-- Each GitHub Actions run performs a bounded paper session for up to 230 seconds, polling DexScreener on a five-second loop.
+- Each GitHub Actions run performs a bounded paper session for up to 230 seconds. The scanner waits five seconds between cycles; provider requests and quote-rate throttling can make the actual cycle longer.
 - The scheduled workflow is configured every five minutes and persists state/ledger/dashboard status to the repository.
 - The dashboard polls the published status file every 30 seconds and distinguishes dashboard refresh time from the last confirmed market-data response. It marks data stale when no successful market response has occurred within ten minutes.
 - GitHub Actions scheduled events can be delayed or skipped. This is not an always-on process, and static GitHub Pages cannot receive each internal five-second scan until the workflow publishes its commit. A continuously fresh five-second dashboard requires a continuously running host and WebSocket-capable market feed; GitHub Actions alone cannot guarantee that.
