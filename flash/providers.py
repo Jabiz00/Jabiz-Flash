@@ -146,7 +146,7 @@ class SolanaTokenAssessor:
         mint = str(snapshot.get("address") or "").strip()
         if not mint:
             raise ValueError("Token mint address missing")
-        key = (mint, round(float(notional_usd), 2))
+        key = (mint, round(float(notional_usd), 2), format(float(snapshot.get("price") or 0), ".12g"))
         cached = self._cache.get(key)
         if cached and float(now) - cached["checked_at"] <= 15:
             return dict(cached)
