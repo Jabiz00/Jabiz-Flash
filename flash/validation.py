@@ -4,12 +4,21 @@ from pathlib import Path
 import requests
 
 DATA=Path("data"); META=DATA/"validation.json"; LEDGER=DATA/"paper_ledger.jsonl"; REPORTS=DATA/"reports"
+STRATEGY_VERSION="hybrid-sniper-live-providers-v1"
 def iso(ts): return datetime.fromtimestamp(ts,timezone.utc).isoformat(timespec="seconds")
 def init():
     DATA.mkdir(parents=True,exist_ok=True)
-    if META.exists(): return json.loads(META.read_text(encoding="utf-8"))
+    if META.exists():
+        existing=json.loads(META.read_text(encoding="utf-8"))
+        if existing.get("strategy_version")==STRATEGY_VERSION:
+            return existing
+        REPORTS.mkdir(parents=True,exist_ok=True)
+        backup=REPORTS/"pre-provider-validation.json"
+        if not backup.exists():
+            backup.write_text(json.dumps(existing,indent=2)+"\n",encoding="utf-8")
     now=time.time(); meta={"started_at":now,"started_at_utc":iso(now),"duration_days":14,
-      "mode":"PAPER ONLY","starting_balance_usd":100.0,"risk_per_trade":0.01,"max_positions":10,"status":"running"}
+      "mode":"PAPER ONLY","starting_balance_usd":100.0,"risk_per_trade":0.01,"max_positions":10,
+      "strategy_version":STRATEGY_VERSION,"status":"running"}
     META.write_text(json.dumps(meta,indent=2)+"\n",encoding="utf-8"); print("Validation started:",meta["started_at_utc"]); return meta
 def read_events():
     out=[]
