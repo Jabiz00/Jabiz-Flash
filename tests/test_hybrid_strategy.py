@@ -99,3 +99,22 @@ def test_ranks_best_candidates_first():
     ]
     assert rank_candidates(candidates)[0]["decision"]["score"] == 90
     assert len(rank_candidates(candidates)) == 2
+
+
+def test_none_authority_values_mean_revoked_not_missing():
+    result = evaluate_token_safety(safe_evidence(), now=1010)
+    assert result.passed
+
+def test_invalid_authority_value_fails_closed():
+    result = evaluate_token_safety(safe_evidence(mint_authority=" "), now=1010)
+    assert not result.passed
+    assert "invalid_mint_authority" in result.reasons
+
+def test_malformed_numeric_metrics_do_not_crash():
+    decision = score_candidate(strong_metrics(
+        liquidity_usd="not-a-number",
+        execution_impact_pct="unknown",
+        momentum_pct=None,
+    ), safety_passed=True)
+    assert not decision.eligible
+    assert "estimated_price_impact_unavailable_or_too_high" in decision.reasons
