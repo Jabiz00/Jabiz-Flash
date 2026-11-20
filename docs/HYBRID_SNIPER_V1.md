@@ -1,36 +1,41 @@
-# Hybrid Sniper v1 — implementation notes
+# Jabiz Flash — Hybrid Sniper (single active strategy)
 
-Status: core decision modules added; not yet connected to the market scanner or paper engine.
-Mode: paper trading only.
+**Status:** Integrated into the paper engine; provider-gated paper entries remain disabled until verified safety and execution-impact adapters are configured.
+**Mode:** PAPER ONLY. No wallet, private key, signing, swaps, or real-money execution.
 
-## Locked decisions
-- Token safety: strict; fail closed on missing/stale critical evidence.
-- Candidate selection: best eligible candidate first.
-- Entry confirmation: fast, requiring a detected setup plus at least one independent market signal.
-- Entry models: momentum, breakout/retest, pullback continuation.
-- Score: 100-point market/execution score; safety is a hard gate and cannot be offset by score.
-- Risk envelope remains unchanged: $100 initial paper balance, 1% risk, max 10 open positions, 300-second maximum hold, 2R baseline target.
+## Locked strategy decisions
+- One active entry strategy: **Hybrid Sniper**. The previous momentum-only entry path is retired.
+- Entry patterns: momentum sniper, breakout/retest, pullback continuation.
+- Token safety: strict, fail-closed. Unknown, stale, missing, malformed, or provider-error evidence rejects the candidate.
+- Candidate selection: score eligible candidates and rank best-first across each discovery batch.
+- Confirmation: fast; a setup must have an independent market confirmation.
+- Score: 100 points — market quality 25, buy flow/volume 25, setup 30, execution quality 20. Safety is a hard gate and never contributes compensating points.
+- Experimental thresholds: liquidity >= $15,000; 24h volume >= $30,000; minimum 4 transactions in 5m; pair age >= 15m; score >= 70; estimated impact <= 1%; top-10 concentration <= 35%; safety evidence <= 300s old.
+- Momentum pattern: >= 0.35% short-window momentum, buy-volume ratio > 0.55, acceleration >= 1.2.
+- Portfolio envelope retained: $100 starting virtual balance, 1% risk budget per trade, up to 10 concurrent positions, 300s maximum hold, 2R target, trailing protection begins at +1R.
 
-## Experimental floors
-- Liquidity: $15,000.
-- 24-hour volume: $30,000.
-- Estimated price impact: at most 1%.
-- Top-10 holder concentration: at most 35%.
-- Safety evidence freshness: at most 300 seconds.
-- Momentum model threshold: 0.35%, buy-volume ratio > 0.55, volume acceleration >= 1.2.
+Thresholds are experimental filters, not evidence of profitability or a promised win rate.
 
-These are initial research thresholds, not claims of profitability. Pair age and minimum transaction count remain market-quality inputs and must be incorporated by the adapter before integration.
+## Integration now present
+- The paper engine calls the safety gate before candidate scoring.
+- The old momentum-only entry branch is removed from the active engine.
+- Market snapshots are normalized defensively; malformed prices/metrics do not crash a scan.
+- Candidates are evaluated as a batch and ranked best-first before opening positions.
+- Position records, ledger entries, Telegram alerts, and dashboard data include model, score, safety status, contract, target, hold duration, and P&L.
+- Existing state and ledger formats are retained; new Position fields have defaults so older saved positions remain loadable.
+- Telegram response bodies are checked, not just HTTP status codes.
+- Scanner diagnostics distinguish safety, score, execution, setup, transaction-count, liquidity, volume, age, and flow rejections.
 
-## Safety evidence contract
-The safety module requires normalized, timestamped evidence for mint authority, freeze authority, top-10 holder concentration, RugCheck status/findings, and sell-route availability. Provider adapters are not implemented in this change. Missing evidence rejects the candidate. The strict authority policy rejects active mint/freeze authority. Provider responses must be mapped to this contract only after their current schema and semantics are verified.
+## Important provider boundary — no fabricated safety
+DexScreener search snapshots do not provide verified mint/freeze authority, holder concentration, RugCheck findings, or a reliable executable sell-route/impact quote. Those values are not inferred from transaction counts or invented. The runtime currently has no configured safety provider and no execution-impact quote provider. Consequently **the live paper engine intentionally rejects all new entries by default** until both providers are implemented and their schemas tested. Existing open paper positions continue to be managed.
 
-## Integration plan
-1. Add provider adapters for on-chain mint/freeze authority and holder distribution, plus RugCheck and a credible sell-route quote source.
-2. Normalize DexScreener market snapshots to include 5-minute USD buy/sell volume, volume acceleration, and enough time-series observations for breakout/retest/pullback detection.
-3. Run safety before scoring; score and rank candidates; recheck safety/price/liquidity/exit route at paper-entry time.
-4. Integrate decisions into PaperEngine while retaining a baseline strategy toggle for A/B paper comparison.
-5. Add dashboard fields for safety outcome, model, score, and rejection reasons.
-6. Run tests and verify Telegram delivery after the separate workflow fix is merged.
+To enable entries later, implement and test providers for:
+1. Solana mint/freeze authority and token-program/extension checks.
+2. Holder distribution with pool/burn/treasury exclusions documented.
+3. RugCheck risk findings mapped to the normalized safety contract.
+4. A current sell-side quote/route and impact estimate for the exact token and simulated size.
 
-## Safety boundaries
-No wallet, private-key, signing, swap-submission, or live execution code is introduced. All decisions are advisory inputs to paper simulation only. A successful provider safety check is not a guarantee that a token is safe or sellable in future.
+The safety provider callback must return the exact normalized evidence accepted by `evaluate_token_safety`; provider exceptions and missing values reject. The execution quote must populate `execution_impact_pct`. No permissive fallback is allowed.
+
+## Validation
+A clean CI run is required before merge. The first 14-day validation window must start only after the integrated code and required providers are active; runs before then are useful for scanner/diagnostic checks, not strategy performance validation.
