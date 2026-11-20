@@ -71,7 +71,7 @@ def test_telegram_entry_and_exit_alert_details(tmp_path):
         def __init__(self): self.messages=[]
         def send(self,message): self.messages.append(message)
     notifier=CaptureNotifier()
-    e=PaperEngine(cfg(),tmp_path,notifier=notifier)
+    e=make_engine(cfg(),tmp_path,notifier=notifier)
     e.history['p1']=[[1,100],[2,101]]
     e.update(snap(102),now=3)
     assert len(notifier.messages)==1
