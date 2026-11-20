@@ -5,7 +5,7 @@ import threading
 import time
 
 from .config import load_config
-from .market import DexScreener, pair_snapshot
+from .market import DexScreener, pair_snapshot, market_data_is_stale
 from .engine import PaperEngine
 from .notify import TelegramNotifier
 from .dashboard import write_status
@@ -55,6 +55,7 @@ def main():
     deadline = None if args.continuous else time.monotonic() + max(30, min(args.duration_seconds, 240))
     cycle = 0
     last_error_notice = 0.0
+    last_stale_notice = 0.0
 
     try:
         while not stop_event.is_set() and (deadline is None or time.monotonic() < deadline):
@@ -85,6 +86,11 @@ def main():
                     notifier.send("⚠️ JABIZ FLASH — SCANNER ERROR\n" + str(exc)[:300] + "\nPaper engine remains running and will retry.")
                     last_error_notice = now
 
+            if market_data_is_stale(engine.market_status.get("last_success_at"), now,
+                                     int(cfg.get("data_stale_after_seconds",600))):
+                if now - last_stale_notice >= 300:
+                    notifier.send("⚠️ JABIZ FLASH — MARKET DATA STALE\nNo successful DexScreener response within the configured freshness window. New entries remain fail-closed; check provider/API health.")
+                    last_stale_notice = now
             engine.save_state()
             write_status(engine)
             metrics, api = engine.scan_metrics, engine.market_status
