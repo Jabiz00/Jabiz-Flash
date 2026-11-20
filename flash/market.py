@@ -87,6 +87,15 @@ class DexScreener:
         self.metrics["pairs_returned"] = len(result)
         return result
 
+def market_data_is_stale(last_success_at, now=None, max_age_seconds=600):
+    now = time.time() if now is None else float(now)
+    if last_success_at is None:
+        return True
+    try:
+        return now - float(last_success_at) > max_age_seconds
+    except (TypeError, ValueError, OverflowError):
+        return True
+
 def pair_snapshot(pair):
     if not isinstance(pair, dict): raise ValueError("Pair payload must be an object")
     base, tx = pair.get("baseToken") or {}, pair.get("txns") or {}
