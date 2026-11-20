@@ -24,8 +24,9 @@ class FakeSession:
         if "rugcheck" in url:
             return Response({"risks":[],"tokenProgram":"Tokenkeg"})
         if "jup.ag" in url:
-            return Response({"outAmount":"12345","routePlan":[{"swapInfo":{}}],
-                             "priceImpactPct":"0.005","router":"metis"})
+            return Response({"inputMint":params["inputMint"],"outputMint":params["outputMint"],
+                             "inAmount":params["amount"],"outAmount":"12345",
+                             "routePlan":[{"swapInfo":{}}],"priceImpactPct":"0.005","router":"metis"})
         raise AssertionError(url)
 
 def test_assessor_builds_fresh_evidence_and_size_specific_sell_quote():
@@ -56,3 +57,14 @@ def test_assessor_fails_closed_for_unsupported_token2022_extensions():
     import pytest
     with pytest.raises(ValueError,match="extensions"):
         provider.assess({"address":"mint","price":1},now=1000,notional_usd=50)
+
+
+def test_price_change_invalidates_cached_sell_quote():
+    session=FakeSession()
+    provider=SolanaTokenAssessor(session=session)
+    provider.assess({"address":"mint","price":0.01},now=1000,notional_usd=50)
+    before=len(session.calls)
+    provider._last_jupiter_request = -100
+    updated=provider.assess({"address":"mint","price":0.0102},now=1001,notional_usd=50)
+    assert len(session.calls) > before
+    assert updated["quote_amount_raw"] != "5000000000"

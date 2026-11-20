@@ -132,8 +132,12 @@ class SolanaTokenAssessor:
         data = self._get(JUPITER_ORDER, params={
             "inputMint":mint,"outputMint":SOL_MINT,"amount":str(raw_amount)
         }, headers=headers)
-        if data.get("error") or not data.get("outAmount") or not data.get("routePlan"):
-            raise ValueError("Jupiter returned no verified sell route")
+        if (data.get("error") or data.get("inputMint") != mint
+                or data.get("outputMint") != SOL_MINT
+                or int(data.get("inAmount") or 0) != raw_amount
+                or int(data.get("outAmount") or 0) <= 0
+                or not isinstance(data.get("routePlan"), list) or not data["routePlan"]):
+            raise ValueError("Jupiter returned no matching verified sell route")
         impact_raw = data.get("priceImpactPct")
         if impact_raw is None:
             raise ValueError("Jupiter quote did not include price impact")
@@ -146,7 +150,7 @@ class SolanaTokenAssessor:
         mint = str(snapshot.get("address") or "").strip()
         if not mint:
             raise ValueError("Token mint address missing")
-        key = (mint, round(float(notional_usd), 2))
+        key = (mint, round(float(notional_usd), 2), format(float(snapshot.get("price") or 0), ".12g"))
         cached = self._cache.get(key)
         if cached and float(now) - cached["checked_at"] <= 15:
             return dict(cached)

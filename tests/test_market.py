@@ -23,3 +23,11 @@ def test_discover_refreshes_exact_open_position_pairs():
     pairs=market.fetch_pairs(["open-pair"])
     assert pairs[0]["pairAddress"]=="open-pair"
     assert market.metrics["successful_requests"]==1
+
+
+def test_market_data_staleness_boundary():
+    from flash.market import market_data_is_stale
+    assert market_data_is_stale(None,now=1000)
+    assert not market_data_is_stale(500,now=1000,max_age_seconds=600)
+    assert market_data_is_stale(399,now=1000,max_age_seconds=600)
+    assert market_data_is_stale("invalid",now=1000)
