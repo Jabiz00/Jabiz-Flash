@@ -270,7 +270,8 @@ class PaperEngine:
             # Coarse quality ranking limits expensive safety/route lookups per scan.
             pre_score = (min(25, liquidity / 15000 * 12.5 + volume / 30000 * 12.5)
                          + min(15, max(0, (metrics["buy_pressure_ratio"] - .5) * 60))
-                         + min(10, metrics["volume_velocity_ratio"] * 5))
+                         + min(10, metrics["volume_velocity_ratio"] * 5)
+                         + metrics["setup_confirmation"] * 30)
             provisional.append({"snapshot":snap,"metrics":metrics,"liquidity_usd":liquidity,
                                 "pre_score":pre_score})
 
