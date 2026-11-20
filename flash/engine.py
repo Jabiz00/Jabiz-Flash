@@ -220,9 +220,14 @@ class PaperEngine:
             if volume < float(self.cfg.get("min_volume_24h_usd", 30000)):
                 self.scan_metrics["rejected_volume"] += 1
                 continue
-            tx_count = self._safe_float(snap.get("buys5")) + self._safe_float(snap.get("sells5"))
+            buys = self._safe_float(snap.get("buys5"))
+            sells = self._safe_float(snap.get("sells5"))
+            tx_count = buys + sells
             if tx_count < int(self.cfg.get("min_transactions_5m", 4)):
                 self.scan_metrics["rejected_transactions"] += 1
+                continue
+            if buys <= sells:
+                self.scan_metrics["rejected_flow"] += 1
                 continue
             created = self._safe_float(snap.get("created_ms"))
             age_min = (now * 1000 - created) / 60000 if created > 0 else 0
