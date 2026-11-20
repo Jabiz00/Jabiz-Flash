@@ -24,8 +24,9 @@ class FakeSession:
         if "rugcheck" in url:
             return Response({"risks":[],"tokenProgram":"Tokenkeg"})
         if "jup.ag" in url:
-            return Response({"outAmount":"12345","routePlan":[{"swapInfo":{}}],
-                             "priceImpactPct":"0.005","router":"metis"})
+            return Response({"inputMint":params["inputMint"],"outputMint":params["outputMint"],
+                             "inAmount":params["amount"],"outAmount":"12345",
+                             "routePlan":[{"swapInfo":{}}],"priceImpactPct":"0.005","router":"metis"})
         raise AssertionError(url)
 
 def test_assessor_builds_fresh_evidence_and_size_specific_sell_quote():
