@@ -245,7 +245,8 @@ class PaperEngine:
                 minimum_score=int(self.cfg.get("minimum_candidate_score", 70)),
                 execution_impact_limit_pct=float(self.cfg.get("execution_impact_limit_pct", 1.0)))
             if not decision.eligible:
-                if "estimated_price_impact_unavailable_or_too_high" in decision.reasons:
+                if ("estimated_price_impact_too_high" in decision.reasons
+                    or "execution_impact_unavailable" in decision.reasons):
                     self.scan_metrics["rejected_execution"] += 1
                 elif "no_hybrid_setup_confirmed" in decision.reasons:
                     self.scan_metrics["rejected_setup"] += 1
