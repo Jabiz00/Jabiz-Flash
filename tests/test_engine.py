@@ -26,22 +26,22 @@ def test_cost_included_risk_sizing(tmp_path):
     assert sl+costs <= 1.000001
 
 def test_max_ten_positions(tmp_path):
-    e=PaperEngine(cfg(),tmp_path)
+    e=make_engine(cfg(),tmp_path)
     for i in range(12):
         key=f"p{i}"; e.history[key]=[[1,100],[2,101]]
         e.update(snap(102,key),now=3)
     assert len(e.positions)==10
 
 def test_persisted_history(tmp_path):
-    e=PaperEngine(cfg(),tmp_path); e.history["p1"]=[[10,1.0],[11,1.1]]; e.save_state()
-    e2=PaperEngine(cfg(),tmp_path)
+    e=make_engine(cfg(),tmp_path); e.history["p1"]=[[10,1.0],[11,1.1]]; e.save_state()
+    e2=make_engine(cfg(),tmp_path)
     assert e2.history["p1"]==[[10.0,1.0],[11.0,1.1]]
 
 def test_momentum():
     assert round(PaperEngine.momentum([[1,100],[2,102]]),2)==2.0
     assert PaperEngine.momentum([[1,100]]) is None
 def test_dashboard_position_details(tmp_path):
-    e=PaperEngine(cfg(),tmp_path)
+    e=make_engine(cfg(),tmp_path)
     e.history["p1"]=[[1,100],[2,101]]
     e.update(snap(102),now=3)
     status=e.dashboard_status()
@@ -55,7 +55,7 @@ def test_dashboard_position_details(tmp_path):
     assert "unrealized_pnl" in p
 
 def test_closed_trade_history_includes_contract_and_hold_time(tmp_path):
-    e=PaperEngine(cfg(),tmp_path)
+    e=make_engine(cfg(),tmp_path)
     e.history["p1"]=[[1,100],[2,101]]
     e.update(snap(102),now=3)
     e.close("p1",103,"test_exit",now=13)
@@ -101,7 +101,7 @@ def test_scan_diagnostics_explain_rejections_and_entries(tmp_path):
 
 
 def test_scan_diagnostics_distinguish_volume_and_flow(tmp_path):
-    e = PaperEngine(cfg(), tmp_path)
+    e = make_engine(cfg(), tmp_path)
     e.scan_metrics = e.empty_scan_metrics()
     e.update({**snap(102, "low-volume"), "volume24": 1}, now=3)
     e.update({**snap(102, "weak-flow"), "buys5": 1, "sells5": 8}, now=3)
