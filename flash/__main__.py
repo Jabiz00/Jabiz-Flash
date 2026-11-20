@@ -61,7 +61,7 @@ def main():
             cycle += 1
             engine.scan_metrics = engine.empty_scan_metrics()
             try:
-                pairs = market.discover(cfg["search_terms"], cfg["max_tokens_to_track"])
+                pairs = market.discover(cfg["search_terms"], cfg["max_tokens_to_track"], engine.positions.keys())
                 now = time.time()
                 snapshots = []
                 for pair in pairs:
