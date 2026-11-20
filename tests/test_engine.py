@@ -3,16 +3,23 @@ from flash.engine import PaperEngine
 def cfg():
     return {"starting_balance_usd":100.0,"risk_per_trade":0.01,"max_positions":10,
       "max_hold_seconds":300,"min_liquidity_usd":10000,"min_volume_24h_usd":10000,
-      "min_pair_age_minutes":0,"entry_momentum_pct":0.5,"early_exit_momentum_pct":-0.25,
+      "min_pair_age_minutes":0,"min_transactions_5m":4,"minimum_candidate_score":70,"execution_impact_limit_pct":1.0,"early_exit_momentum_pct":-0.25,
       "target_r":2.0,"stop_pct":1.5,"estimated_round_trip_cost_pct":1.0,
       "trail_after_r":1.0,"trailing_drawdown_pct":0.8}
 
+def safe_provider(snap, now):
+    return {"mint_authority":None,"freeze_authority":None,"top10_holder_pct":22,
+      "rugcheck_status":"good","critical_risks":[],"sell_route_available":True,"checked_at":now}
+
+def make_engine(cfg_value, data_dir, **kwargs):
+    return PaperEngine(cfg_value, data_dir, safety_provider=safe_provider, **kwargs)
+
 def snap(price,pair="p1"):
     return {"pair":pair,"price":price,"token":"TEST","address":"mint","liquidity":50000,
-      "volume24":100000,"buys5":10,"sells5":2,"created_ms":1,"url":"https://example.com"}
+      "volume24":100000,"volume1h":12000,"buy_volume_ratio":0.68,"volume_acceleration":2.0,"execution_impact_pct":0.2,"buys5":10,"sells5":2,"created_ms":1,"url":"https://example.com"}
 
 def test_cost_included_risk_sizing(tmp_path):
-    e=PaperEngine(cfg(),tmp_path); e.history["p1"]=[[1,100],[2,101]]
+    e=make_engine(cfg(),tmp_path); e.history["p1"]=[[1,100],[2,101]]
     e.update(snap(102),now=3); p=e.positions["p1"]
     sl=p.quantity*(p.entry-p.initial_stop)
     costs=(p.entry+p.initial_stop)*p.quantity*0.01/2
@@ -80,7 +87,7 @@ def test_telegram_entry_and_exit_alert_details(tmp_path):
     assert 'Estimated costs:' in exit_message and 'SIMULATED' in exit_message
 
 def test_scan_diagnostics_explain_rejections_and_entries(tmp_path):
-    e = PaperEngine(cfg(), tmp_path)
+    e = make_engine(cfg(), tmp_path)
     e.scan_metrics = e.empty_scan_metrics()
     e.update({**snap(102), "liquidity": 100}, now=3)
     assert e.scan_metrics["discovered"] == 1
@@ -100,3 +107,32 @@ def test_scan_diagnostics_distinguish_volume_and_flow(tmp_path):
     e.update({**snap(102, "weak-flow"), "buys5": 1, "sells5": 8}, now=3)
     assert e.scan_metrics["rejected_volume"] == 1
     assert e.scan_metrics["rejected_flow"] == 1
+
+
+def test_strict_safety_default_blocks_entries_without_provider(tmp_path):
+    e = PaperEngine(cfg(), tmp_path)
+    e.history["p1"] = [[1, 100], [2, 101]]
+    e.update(snap(102), now=3)
+    assert not e.positions
+    assert e.scan_metrics["rejected_safety"] == 1
+
+def test_scan_ranks_best_candidate_before_opening(tmp_path):
+    e = make_engine(cfg(), tmp_path)
+    first = {**snap(102, "lower-score"), "liquidity": 50000,
+             "buy_volume_ratio": 0.60, "execution_impact_pct": 0.8}
+    best = {**snap(102, "best-score"), "liquidity": 90000,
+            "buy_volume_ratio": 0.75, "execution_impact_pct": 0.1}
+    e.history["lower-score"] = [[1, 100], [2, 101]]
+    e.history["best-score"] = [[1, 100], [2, 101]]
+    e.process_scan([first, best], now=3)
+    assert "best-score" in e.positions
+    assert e.positions["best-score"].candidate_score >= e.positions["lower-score"].candidate_score
+
+def test_position_persists_hybrid_metadata(tmp_path):
+    e = make_engine(cfg(), tmp_path)
+    e.history["p1"] = [[1, 100], [2, 101]]
+    e.update(snap(102), now=3)
+    loaded = make_engine(cfg(), tmp_path)
+    assert loaded.positions["p1"].entry_model == "momentum"
+    assert loaded.positions["p1"].candidate_score >= 70
+    assert loaded.positions["p1"].safety_status == "PASS"
