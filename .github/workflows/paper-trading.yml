@@ -31,7 +31,12 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          SOLANA_RPC_URL: ${{ secrets.SOLANA_RPC_URL }}
+          JUPITER_API_KEY: ${{ secrets.JUPITER_API_KEY }}
         run: python -m flash --duration-seconds 230
+      - name: Verify dashboard heartbeat
+        run: |
+          python -c "import json,time; d=json.load(open('dashboard/status.json')); age=time.time()-float(d['updated_at']); print(f'Dashboard status age: {age:.0f}s'); assert age < 120"
       - name: Save paper-trading state
         run: |
           git config user.name "github-actions[bot]"

@@ -18,3 +18,16 @@ def test_trade_summary_metrics():
     assert result["closed_trades"]==2 and result["win_rate_pct"]==50
     assert result["net_pnl_usd"]==1 and result["profit_factor"]==2
     assert result["average_r"]==0.5 and result["scan_metrics"]["discovered"]==20
+
+
+def test_init_restarts_validation_when_strategy_version_changes(tmp_path, monkeypatch):
+    meta=tmp_path/"validation.json"
+    monkeypatch.setattr(validation,"DATA",tmp_path)
+    monkeypatch.setattr(validation,"META",meta)
+    monkeypatch.setattr(validation,"REPORTS",tmp_path/"reports")
+    old={"started_at":1,"started_at_utc":"old","duration_days":14,"mode":"PAPER ONLY"}
+    meta.write_text(__import__("json").dumps(old))
+    current=validation.init()
+    assert current["started_at"] > 1
+    assert current["strategy_version"] == validation.STRATEGY_VERSION
+    assert (tmp_path/"reports"/"pre-provider-validation.json").exists()

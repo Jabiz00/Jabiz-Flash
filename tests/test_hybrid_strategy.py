@@ -20,8 +20,8 @@ def strong_metrics(**overrides):
     data = {
         "liquidity_usd": 50000,
         "volume24_usd": 100000,
-        "buy_volume_ratio": 0.68,
-        "volume_acceleration": 2.0,
+        "buy_pressure_ratio": 0.68,
+        "volume_velocity_ratio": 2.0,
         "setup_confirmation": 0.9,
         "execution_impact_pct": 0.2,
         "momentum_pct": 0.6,

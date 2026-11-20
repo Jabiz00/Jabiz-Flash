@@ -16,7 +16,7 @@ def make_engine(cfg_value, data_dir, **kwargs):
 
 def snap(price,pair="p1"):
     return {"pair":pair,"price":price,"token":"TEST","address":"mint","liquidity":50000,
-      "volume24":100000,"volume1h":12000,"buy_volume_ratio":0.68,"volume_acceleration":2.0,"execution_impact_pct":0.2,"buys5":10,"sells5":2,"created_ms":1,"url":"https://example.com"}
+      "volume24":100000,"volume1h":12000,"buy_pressure_ratio":0.68,"volume_velocity_ratio":2.0,"execution_impact_pct":0.2,"buys5":10,"sells5":2,"created_ms":1,"url":"https://example.com"}
 
 def test_cost_included_risk_sizing(tmp_path):
     e=make_engine(cfg(),tmp_path); e.history["p1"]=[[1,100],[2,101]]
@@ -119,9 +119,9 @@ def test_strict_safety_default_blocks_entries_without_provider(tmp_path):
 def test_scan_ranks_best_candidate_before_opening(tmp_path):
     e = make_engine(cfg(), tmp_path)
     first = {**snap(102, "lower-score"), "liquidity": 50000,
-             "buy_volume_ratio": 0.60, "execution_impact_pct": 0.8}
+             "buy_pressure_ratio": 0.60, "execution_impact_pct": 0.8}
     best = {**snap(102, "best-score"), "liquidity": 90000,
-            "buy_volume_ratio": 0.75, "execution_impact_pct": 0.1}
+            "buy_pressure_ratio": 0.75, "execution_impact_pct": 0.1}
     e.history["lower-score"] = [[1, 100], [2, 101]]
     e.history["best-score"] = [[1, 100], [2, 101]]
     e.process_scan([first, best], now=3)
@@ -138,10 +138,10 @@ def test_position_persists_hybrid_metadata(tmp_path):
     assert loaded.positions["p1"].safety_status == "PASS"
 
 
-def test_transaction_counts_are_not_misreported_as_buy_volume_ratio(tmp_path):
+def test_buy_pressure_ratio_uses_transaction_counts_not_usd_volume(tmp_path):
     e = make_engine(cfg(), tmp_path)
     candidate = snap(102)
-    candidate.pop("buy_volume_ratio")
+    candidate.pop("buy_pressure_ratio")
     metrics = e._market_metrics(candidate, [[1, 100], [2, 101], [3, 102]])
-    assert metrics["buy_volume_ratio"] == 0.0
-    assert metrics["volume_acceleration"] == 2.0
+    assert round(metrics["buy_pressure_ratio"], 4) == round(10 / 12, 4)
+    assert metrics["volume_velocity_ratio"] == 2.0

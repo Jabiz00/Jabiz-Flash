@@ -39,6 +39,8 @@ class PaperEngine:
         self.stats = {"closed_trades": 0, "wins": 0, "losses": 0, "realized_pnl": 0.0}
         self.scan_metrics = self.empty_scan_metrics()
         self.market_status = {"provider": "DexScreener REST", "status": "not_started"}
+        self.provider_status = {"status": "not_configured"}
+        self._last_assessment = None
         self.load_state()
 
     @staticmethod
@@ -52,6 +54,7 @@ class PaperEngine:
             "rejected_safety": 0, "rejected_score": 0,
             "rejected_execution": 0, "rejected_setup": 0,
             "rejected_transactions": 0, "ranked_candidates": 0,
+            "provider_shortlist": 0, "provider_candidates_deferred": 0,
         }
 
     def load_state(self):
@@ -120,10 +123,12 @@ class PaperEngine:
         count = buys + sells
         # Transaction-count imbalance is a separate hard filter; never label it
         # as USD buy-volume ratio. Missing USD flow remains unknown/zero-scored.
-        buy_ratio = snap.get("buy_volume_ratio")
+        # DexScreener provides transaction counts, not USD buy/sell volume.
+        # This is transaction buy-pressure, never mislabeled as buy-volume share.
+        buy_ratio = snap.get("buy_pressure_ratio")
         if buy_ratio is None:
-            buy_ratio = 0.0
-        acceleration = snap.get("volume_acceleration")
+            buy_ratio = buys / count if count > 0 else 0.0
+        acceleration = snap.get("volume_velocity_ratio")
         if acceleration is None:
             h1 = self._safe_float(snap.get("volume1h"))
             h24 = self._safe_float(snap.get("volume24"))
@@ -144,8 +149,8 @@ class PaperEngine:
         metrics = {
             "liquidity_usd": self._safe_float(snap.get("liquidity")),
             "volume24_usd": self._safe_float(snap.get("volume24")),
-            "buy_volume_ratio": self._safe_float(buy_ratio, -1.0) if buy_ratio is not None else 0.0,
-            "volume_acceleration": self._safe_float(acceleration),
+            "buy_pressure_ratio": self._safe_float(buy_ratio, -1.0) if buy_ratio is not None else 0.0,
+            "volume_velocity_ratio": self._safe_float(acceleration),
             "execution_impact_pct": self._safe_float(snap.get("execution_impact_pct"), 999.0)
                 if snap.get("execution_impact_pct") is not None else 999.0,
             "momentum_pct": self._safe_float(momentum, -999.0) if momentum is not None else -999.0,
@@ -158,11 +163,31 @@ class PaperEngine:
 
     def _safety(self, snap, now):
         if not callable(self.safety_provider):
+            self._last_assessment = None
             return evaluate_token_safety(None, now=now)
         try:
-            evidence = self.safety_provider(snap, now)
+            stop_fraction = max(0.0001, float(self.cfg["stop_pct"]) / 100)
+            notional_usd = max(0.0, self.equity * float(self.cfg["risk_per_trade"]) / stop_fraction)
+            evidence = self.safety_provider(snap, now, notional_usd)
+            if not isinstance(evidence, dict):
+                raise ValueError("Safety provider returned malformed evidence")
+            self._last_assessment = evidence
+            self.provider_status = {"status":"connected","last_checked_at":evidence.get("provider_checked_at"),
+                "last_error":"","quote_router":evidence.get("quote_router"),
+                "token_program":evidence.get("token_program")}
+        except TypeError:
+            # Backwards-compatible test/provider contract with two arguments.
+            try:
+                evidence = self.safety_provider(snap, now)
+                self._last_assessment = evidence if isinstance(evidence, dict) else None
+            except Exception as exc:
+                print(f"[safety] provider failed closed: {str(exc)[:180]}")
+                self._last_assessment = None
+                evidence = None
         except Exception as exc:
             print(f"[safety] provider failed closed: {str(exc)[:180]}")
+            self.provider_status = {"status":"error","last_error":str(exc)[:240]}
+            self._last_assessment = None
             evidence = None
         return evaluate_token_safety(evidence, now=now)
 
@@ -194,11 +219,14 @@ class PaperEngine:
             pos.stop = max(pos.stop, trail)
 
     def process_scan(self, snapshots, now=None):
-        """Update open positions, rank all fresh candidates, then fill best-first."""
+        """Manage positions, pre-rank fresh pairs, assess a bounded best-first shortlist."""
         now = time.time() if now is None else float(now)
-        candidates = []
+        provisional = []
         for snap in snapshots:
             self.scan_metrics["discovered"] += 1
+            if not isinstance(snap, dict):
+                self.scan_metrics["invalid_price"] += 1
+                continue
             pair = snap.get("pair")
             price = self._safe_float(snap.get("price"))
             if not pair or price <= 0:
@@ -224,8 +252,7 @@ class PaperEngine:
                 continue
             buys = self._safe_float(snap.get("buys5"))
             sells = self._safe_float(snap.get("sells5"))
-            tx_count = buys + sells
-            if tx_count < int(self.cfg.get("min_transactions_5m", 4)):
+            if buys + sells < int(self.cfg.get("min_transactions_5m", 4)):
                 self.scan_metrics["rejected_transactions"] += 1
                 continue
             if buys <= sells:
@@ -239,27 +266,45 @@ class PaperEngine:
             if len(samples) < 2:
                 self.scan_metrics["waiting_for_price_history"] += 1
                 continue
+            metrics = self._market_metrics(snap, samples)
+            # Coarse quality ranking limits expensive safety/route lookups per scan.
+            pre_score = (min(25, liquidity / 15000 * 12.5 + volume / 30000 * 12.5)
+                         + min(15, max(0, (metrics["buy_pressure_ratio"] - .5) * 60))
+                         + min(10, metrics["volume_velocity_ratio"] * 5))
+            provisional.append({"snapshot":snap,"metrics":metrics,"liquidity_usd":liquidity,
+                                "pre_score":pre_score})
+
+        provisional.sort(key=lambda item:(item["pre_score"],item["liquidity_usd"]),reverse=True)
+        cap = max(1, int(self.cfg.get("max_provider_checks_per_scan", 6)))
+        self.scan_metrics["provider_shortlist"] = min(len(provisional), cap)
+        self.scan_metrics["provider_candidates_deferred"] = max(0, len(provisional)-cap)
+        candidates = []
+        for item in provisional[:cap]:
+            snap, metrics = item["snapshot"], dict(item["metrics"])
             safety = self._safety(snap, now)
             if not safety.passed:
                 self.scan_metrics["rejected_safety"] += 1
-            metrics = self._market_metrics(snap, samples)
-            decision = score_candidate(metrics, safety_passed=safety.passed,
-                minimum_score=int(self.cfg.get("minimum_candidate_score", 70)),
-                execution_impact_limit_pct=float(self.cfg.get("execution_impact_limit_pct", 1.0)))
+                continue
+            assessment = self._last_assessment or {}
+            impact = assessment.get("execution_impact_pct")
+            if impact is None:
+                impact = snap.get("execution_impact_pct")
+            metrics["execution_impact_pct"] = impact
+            decision = score_candidate(metrics, safety_passed=True,
+                minimum_score=int(self.cfg.get("minimum_candidate_score",70)),
+                execution_impact_limit_pct=float(self.cfg.get("execution_impact_limit_pct",1.0)))
             if not decision.eligible:
-                if ("estimated_price_impact_too_high" in decision.reasons
-                    or "execution_impact_unavailable" in decision.reasons):
+                if "estimated_price_impact_too_high" in decision.reasons or "execution_impact_unavailable" in decision.reasons:
                     self.scan_metrics["rejected_execution"] += 1
                 elif "no_hybrid_setup_confirmed" in decision.reasons:
                     self.scan_metrics["rejected_setup"] += 1
                 elif "candidate_score_below_threshold" in decision.reasons:
                     self.scan_metrics["rejected_score"] += 1
-                elif safety.passed:
+                else:
                     self.scan_metrics["rejected_score"] += 1
                 continue
-            candidates.append({"snapshot": snap, "metrics": metrics,
-                "decision": decision.to_dict(), "liquidity_usd": liquidity,
-                "safety": safety.to_dict()})
+            candidates.append({"snapshot":snap,"metrics":metrics,"decision":decision.to_dict(),
+                "liquidity_usd":item["liquidity_usd"],"safety":safety.to_dict()})
 
         self.scan_metrics["ranked_candidates"] = len(candidates)
         for candidate in rank_candidates(candidates):
@@ -267,11 +312,10 @@ class PaperEngine:
                 self.scan_metrics["blocked_position_limit"] += 1
                 break
             self._open_position(candidate, now)
-        # Bound dormant history to the current discovery universe.
-        max_history = max(80, int(self.cfg.get("max_tokens_to_track", 80)) * 2)
+        max_history = max(80, int(self.cfg.get("max_tokens_to_track",80))*2)
         if len(self.history) > max_history:
             ordered = sorted(self.history.items(),
-                key=lambda item: item[1][-1][0] if item[1] else 0, reverse=True)
+                key=lambda item:item[1][-1][0] if item[1] else 0,reverse=True)
             self.history = dict(ordered[:max_history])
         self.save_state()
 
@@ -355,4 +399,9 @@ class PaperEngine:
                 "min_volume_24h_usd":self.cfg.get("min_volume_24h_usd",30000),
                 "max_execution_impact_pct":self.cfg.get("execution_impact_limit_pct",1.0),
                 "max_top10_holder_pct":35,"safety_evidence_max_age_seconds":300},
+            "data_freshness":{"market_last_success_at":self.market_status.get("last_success_at"),
+                "last_scan_at":self.market_status.get("last_scan_at"),
+                "dashboard_generated_at":now,
+                "provider_status":dict(self.provider_status),
+                "market_age_seconds":max(0,int(now-self.market_status["last_success_at"])) if self.market_status.get("last_success_at") else None},
             "scanner":{"metrics":dict(self.scan_metrics),"api":dict(self.market_status)}}
