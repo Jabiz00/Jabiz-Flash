@@ -55,6 +55,8 @@ class PaperEngine:
             "rejected_execution": 0, "rejected_setup": 0,
             "rejected_transactions": 0, "ranked_candidates": 0,
             "provider_shortlist": 0, "provider_candidates_deferred": 0,
+            "provider_assessments_attempted": 0, "provider_assessments_passed": 0,
+            "provider_assessments_failed": 0, "last_provider_error": "",
         }
 
     def load_state(self):
@@ -162,31 +164,40 @@ class PaperEngine:
         return metrics
 
     def _safety(self, snap, now):
+        self.scan_metrics['provider_assessments_attempted'] += 1
         if not callable(self.safety_provider):
             self._last_assessment = None
+            self.scan_metrics['provider_assessments_failed'] += 1
+            self.scan_metrics['last_provider_error'] = 'Safety provider is not configured'
             return evaluate_token_safety(None, now=now)
         try:
-            stop_fraction = max(0.0001, float(self.cfg["stop_pct"]) / 100)
-            notional_usd = max(0.0, self.equity * float(self.cfg["risk_per_trade"]) / stop_fraction)
-            evidence = self.safety_provider(snap, now, notional_usd)
-            if not isinstance(evidence, dict):
-                raise ValueError("Safety provider returned malformed evidence")
-            self._last_assessment = evidence
-            self.provider_status = {"status":"connected","last_checked_at":evidence.get("provider_checked_at"),
-                "last_error":"","quote_router":evidence.get("quote_router"),
-                "token_program":evidence.get("token_program")}
-        except TypeError:
-            # Backwards-compatible test/provider contract with two arguments.
+            stop_fraction = max(0.0001, float(self.cfg['stop_pct']) / 100)
+            notional_usd = max(0.0, self.equity * float(self.cfg['risk_per_trade']) / stop_fraction)
             try:
-                evidence = self.safety_provider(snap, now)
-                self._last_assessment = evidence if isinstance(evidence, dict) else None
-            except Exception as exc:
-                print(f"[safety] provider failed closed: {str(exc)[:180]}")
-                self._last_assessment = None
-                evidence = None
+                evidence = self.safety_provider(snap, now, notional_usd)
+            except TypeError as signature_error:
+                try:
+                    evidence = self.safety_provider(snap, now)
+                except TypeError:
+                    raise signature_error
+            if not isinstance(evidence, dict):
+                raise ValueError('Safety provider returned malformed evidence')
+            self._last_assessment = evidence
+            self.scan_metrics['provider_assessments_passed'] += 1
+            self.scan_metrics['last_provider_error'] = ''
+            owner = getattr(self.safety_provider, '__self__', None)
+            details = owner.status() if owner and callable(getattr(owner, 'status', None)) else {}
+            self.provider_status = {**details, 'status': 'healthy',
+                'last_checked_at': evidence.get('provider_checked_at'), 'last_error': '',
+                'quote_router': evidence.get('quote_router'), 'token_program': evidence.get('token_program')}
         except Exception as exc:
-            print(f"[safety] provider failed closed: {str(exc)[:180]}")
-            self.provider_status = {"status":"error","last_error":str(exc)[:240]}
+            message = str(exc)[:240]
+            print(f'[safety] provider failed closed: {message}')
+            self.scan_metrics['provider_assessments_failed'] += 1
+            self.scan_metrics['last_provider_error'] = message
+            owner = getattr(self.safety_provider, '__self__', None)
+            details = owner.status() if owner and callable(getattr(owner, 'status', None)) else {}
+            self.provider_status = {**details, 'status': 'degraded', 'last_error': message}
             self._last_assessment = None
             evidence = None
         return evaluate_token_safety(evidence, now=now)
@@ -404,5 +415,6 @@ class PaperEngine:
                 "last_scan_at":self.market_status.get("last_scan_at"),
                 "dashboard_generated_at":now,
                 "provider_status":dict(self.provider_status),
+                "provider_assessments": {"attempted": self.scan_metrics.get("provider_assessments_attempted", 0), "passed": self.scan_metrics.get("provider_assessments_passed", 0), "failed": self.scan_metrics.get("provider_assessments_failed", 0), "last_error": self.scan_metrics.get("last_provider_error", "")},
                 "market_age_seconds":max(0,int(now-self.market_status["last_success_at"])) if self.market_status.get("last_success_at") else None},
             "scanner":{"metrics":dict(self.scan_metrics),"api":dict(self.market_status)}}

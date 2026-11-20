@@ -32,6 +32,8 @@ class FakeSession:
 def test_assessor_builds_fresh_evidence_and_size_specific_sell_quote():
     session=FakeSession()
     provider=SolanaTokenAssessor(session=session)
+    assert provider.rpc_url == "https://api.mainnet-beta.solana.com"
+    assert provider.jupiter_url == "https://lite-api.jup.ag/swap/v1/quote"
     result=provider.assess({"address":"mint","price":0.01},now=1000,notional_usd=50)
     assert result["mint_authority"] is None
     assert result["freeze_authority"] is None
