@@ -1,0 +1,75 @@
+{
+  "generated_at_utc": "2026-11-20T07:16:18+00:00",
+  "validation_started_at_utc": "2026-11-19T22:19:10+00:00",
+  "elapsed_days": 0.373,
+  "days_remaining": 13.627,
+  "status": "running",
+  "mode": "PAPER ONLY",
+  "daily_period": {
+    "from_utc": "2026-11-19T22:19:10+00:00",
+    "to_utc": "2026-11-20T07:16:18+00:00"
+  },
+  "daily": {
+    "closed_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate_pct": 0,
+    "net_pnl_usd": 0,
+    "profit_factor": null,
+    "average_r": 0,
+    "max_closed_trade_drawdown_pct": 0,
+    "average_holding_seconds": 0,
+    "exit_reasons": {},
+    "scan_metrics": {
+      "discovered": 160,
+      "valid_price": 159,
+      "invalid_price": 1,
+      "managed_positions": 0,
+      "qualified_entries": 0,
+      "rejected_liquidity": 88,
+      "rejected_volume": 46,
+      "rejected_flow": 19,
+      "rejected_pair_age": 0,
+      "waiting_for_price_history": 0,
+      "rejected_momentum": 6,
+      "blocked_position_limit": 0
+    },
+    "completed_paper_sessions": 2
+  },
+  "cumulative": {
+    "closed_trades": 0,
+    "wins": 0,
+    "losses": 0,
+    "win_rate_pct": 0,
+    "net_pnl_usd": 0,
+    "profit_factor": null,
+    "average_r": 0,
+    "max_closed_trade_drawdown_pct": 0,
+    "average_holding_seconds": 0,
+    "exit_reasons": {},
+    "scan_metrics": {
+      "discovered": 160,
+      "valid_price": 159,
+      "invalid_price": 1,
+      "managed_positions": 0,
+      "qualified_entries": 0,
+      "rejected_liquidity": 88,
+      "rejected_volume": 46,
+      "rejected_flow": 19,
+      "rejected_pair_age": 0,
+      "waiting_for_price_history": 0,
+      "rejected_momentum": 6,
+      "blocked_position_limit": 0
+    },
+    "completed_paper_sessions": 2
+  },
+  "run_monitor": {
+    "status": "unavailable",
+    "error": "401 Client Error: Unauthorized for url: https://api.github.com/repos/Jabiz00/Jabiz-Flash/actions/workflows/paper-trading.yml/runs?per_page=100&page=1&created=%3E%3D2026-11-19"
+  },
+  "limitations": [
+    "DexScreener snapshots are not executable quotes.",
+    "Five-minute sessions leave observation gaps.",
+    "Paper fills and estimated costs do not establish live profitability."
+  ]
+}
