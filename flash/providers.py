@@ -75,8 +75,25 @@ class SolanaTokenAssessor:
         values = (result or {}).get("value")
         if not isinstance(values, list) or not values:
             raise ValueError("Largest token-account data unavailable")
-        top10 = sum(int(item["amount"]) for item in values[:10])
-        return min(100.0, top10 / supply * 100.0)
+        accounts = values[:10]
+        addresses = [item.get("address") for item in accounts if item.get("address")]
+        if len(addresses) != len(accounts):
+            raise ValueError("Largest token-account addresses incomplete")
+        owners_result = self._rpc("getMultipleAccounts", [
+            addresses, {"encoding":"jsonParsed","commitment":"confirmed"}
+        ])
+        owner_values = (owners_result or {}).get("value")
+        if not isinstance(owner_values, list) or len(owner_values) != len(accounts):
+            raise ValueError("Token-account owner details unavailable")
+        balances_by_owner = {}
+        for account, owner_account in zip(accounts, owner_values):
+            parsed_info = (((owner_account or {}).get("data") or {}).get("parsed") or {}).get("info") or {}
+            owner = parsed_info.get("owner")
+            if not owner:
+                raise ValueError("Token-account owner missing")
+            balances_by_owner[owner] = balances_by_owner.get(owner, 0) + int(account["amount"])
+        top10_holders = sorted(balances_by_owner.values(), reverse=True)[:10]
+        return min(100.0, sum(top10_holders) / supply * 100.0)
 
     def _rugcheck(self, mint):
         report = self._get(f"{self.rugcheck_base}/tokens/{mint}/report/summary")
