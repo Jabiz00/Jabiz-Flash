@@ -12,7 +12,7 @@ import requests
 
 SOL_MINT = "So11111111111111111111111111111111111111112"
 RPC_DEFAULT = "https://solana-rpc.publicnode.com"
-RPC_FALLBACKS = ("https://api.mainnet-beta.solana.com",)
+RPC_FALLBACKS = ("https://solana-rpc.publicnode.com", "https://api.mainnet-beta.solana.com")
 RUGCHECK_BASE = "https://api.rugcheck.xyz/v1"
 JUPITER_LITE_QUOTE = "https://lite-api.jup.ag/swap/v1/quote"
 JUPITER_PAID_QUOTE = "https://api.jup.ag/swap/v1/quote"
