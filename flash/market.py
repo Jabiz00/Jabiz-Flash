@@ -19,7 +19,7 @@ class DexScreener:
     @staticmethod
     def _empty_metrics():
         return {"provider":"DexScreener REST","request_count":0,"successful_requests":0,
-                "failed_requests":0,"last_success_at":None,"last_error":"",
+                "failed_requests":0,"last_success_at":None,"scan_last_success_at":None,"last_error":"",
                 "terms_searched":0,"pairs_returned":0}
     def status(self): return dict(self.metrics)
     def search(self, term):
@@ -32,6 +32,8 @@ class DexScreener:
             if not isinstance(payload, dict): raise ValueError("Unexpected DexScreener payload")
             self.metrics["successful_requests"] += 1
             self.metrics["last_success_at"] = time.time()
+            self.metrics["scan_last_success_at"] = self.metrics["last_success_at"]
+            self.metrics["last_error"] = ""
             return [p for p in (payload.get("pairs") or [])
                     if isinstance(p, dict) and (p.get("chainId") or "").lower()=="solana"]
         except (requests.RequestException, ValueError) as exc:
@@ -39,7 +41,9 @@ class DexScreener:
             self.metrics["last_error"] = str(exc)[:240]
             raise
     def discover(self, terms, limit=80):
+        previous_success = self.metrics.get("last_success_at")
         self.metrics = self._empty_metrics()
+        self.metrics["last_success_at"] = previous_success
         found = {}
         for term in terms:
             self.metrics["terms_searched"] += 1
