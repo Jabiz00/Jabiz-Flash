@@ -1,14 +1,13 @@
-"""Strict, provider-agnostic safety gate for Solana paper-trading candidates.
+"""Strict fail-closed Solana token safety evaluation.
 
-This module consumes normalized on-chain/provider evidence. It deliberately does
-not fetch external data: callers must supply fresh, attributable evidence.
-Unknown critical fields fail closed. No live-trading functionality exists here.
+Provider adapters must supply normalized evidence. None is a valid value for
+revoked mint/freeze authorities; missing keys are not. No network or trading
+operations are performed in this module.
 """
 from __future__ import annotations
-
 from dataclasses import dataclass, asdict
+from math import isfinite
 from typing import Any, Mapping
-
 
 @dataclass(frozen=True)
 class SafetyResult:
@@ -24,71 +23,64 @@ class SafetyResult:
         result["warnings"] = list(self.warnings)
         return result
 
+def evaluate_token_safety(evidence: Mapping[str, Any] | None, *, now: float,
+                          max_age_seconds: int = 300,
+                          max_top10_holder_pct: float = 35.0) -> SafetyResult:
+    """Evaluate normalized evidence; missing/invalid critical evidence rejects."""
+    if not isinstance(evidence, Mapping):
+        return SafetyResult("REJECT", False, ("safety_evidence_unavailable",), (), None)
+    required = ("mint_authority", "freeze_authority", "top10_holder_pct",
+                "rugcheck_status", "critical_risks", "sell_route_available", "checked_at")
+    missing = [key for key in required if key not in evidence]
+    if missing:
+        return SafetyResult("REJECT", False,
+            ("missing_safety_evidence:" + ",".join(missing),), (), None)
 
-def evaluate_token_safety(
-    evidence: Mapping[str, Any],
-    *,
-    now: float,
-    max_age_seconds: int = 300,
-    max_top10_holder_pct: float = 35.0,
-) -> SafetyResult:
-    """Evaluate normalized safety evidence; missing critical evidence rejects.
-
-    Required keys: mint_authority, freeze_authority, top10_holder_pct,
-    rugcheck_status, critical_risks, sell_route_available, checked_at.
-    Authority values must be None (revoked) or a non-empty authority string.
-    rugcheck_status must be 'good' or 'warn'; 'danger'/'unknown' reject.
-    """
     reasons: list[str] = []
     warnings: list[str] = []
-    required = (
-        "mint_authority", "freeze_authority", "top10_holder_pct",
-        "rugcheck_status", "critical_risks", "sell_route_available",
-        "checked_at",
-    )
-    missing = [key for key in required if key not in evidence or evidence[key] is None]
-    if missing:
-        reasons.append("missing_safety_evidence:" + ",".join(missing))
-        return SafetyResult("REJECT", False, tuple(reasons), tuple(warnings), None)
+    checked_at = None
+    try:
+        checked_at = float(evidence["checked_at"])
+        if not isfinite(checked_at) or not isfinite(float(now)):
+            raise ValueError
+        age = float(now) - checked_at
+        if age < -30 or age > max_age_seconds:
+            reasons.append("stale_or_future_safety_evidence")
+    except (TypeError, ValueError, OverflowError):
+        reasons.append("invalid_safety_timestamp")
 
-    checked_at = float(evidence["checked_at"])
-    age = now - checked_at
-    if age < -30 or age > max_age_seconds:
-        reasons.append("stale_or_future_safety_evidence")
-
-    if evidence["mint_authority"]:
-        reasons.append("active_mint_authority")
-    if evidence["freeze_authority"]:
-        reasons.append("active_freeze_authority")
+    # None explicitly means revoked/no authority. Empty strings are invalid.
+    for key, reason in (("mint_authority", "active_mint_authority"),
+                        ("freeze_authority", "active_freeze_authority")):
+        value = evidence[key]
+        if value is not None:
+            if not isinstance(value, str) or not value.strip():
+                reasons.append("invalid_" + key)
+            else:
+                reasons.append(reason)
 
     try:
         concentration = float(evidence["top10_holder_pct"])
-        if not 0 <= concentration <= 100:
+        if not isfinite(concentration) or not 0 <= concentration <= 100:
             raise ValueError
         if concentration > max_top10_holder_pct:
             reasons.append("excessive_top10_holder_concentration")
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         reasons.append("invalid_holder_concentration")
 
-    rug_status = str(evidence["rugcheck_status"]).lower()
+    rug_status = str(evidence["rugcheck_status"]).strip().lower()
     if rug_status not in {"good", "warn"}:
         reasons.append("rugcheck_not_clear")
-    if rug_status == "warn":
+    elif rug_status == "warn":
         warnings.append("rugcheck_warning")
     critical = evidence["critical_risks"]
     if not isinstance(critical, (list, tuple)):
         reasons.append("invalid_risk_findings")
     elif critical:
         reasons.append("critical_rugcheck_findings")
-
     if evidence["sell_route_available"] is not True:
         reasons.append("no_verified_sell_route")
 
-    passed = not reasons
-    return SafetyResult(
-        "PASS" if passed else "REJECT",
-        passed,
-        tuple(dict.fromkeys(reasons)),
-        tuple(warnings),
-        checked_at,
-    )
+    reasons = list(dict.fromkeys(reasons))
+    return SafetyResult("PASS" if not reasons else "REJECT", not reasons,
+                        tuple(reasons), tuple(warnings), checked_at)
