@@ -47,6 +47,7 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
     buy_ratio = min(1.0, max(0.0, _number(metrics, "buy_volume_ratio")))
     acceleration = max(0.0, _number(metrics, "volume_acceleration"))
     setup = min(1.0, max(0.0, _number(metrics, "setup_confirmation")))
+    raw_impact = metrics.get("execution_impact_pct")
     impact = _number(metrics, "execution_impact_pct", 999.0)
     impact_limit = max(0.01, _number({"v": execution_impact_limit_pct}, "v", 1.0))
 
@@ -57,7 +58,8 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
 
     if liquidity < 15000: reasons.append("liquidity_below_experimental_floor")
     if volume < 30000: reasons.append("volume_below_experimental_floor")
-    if impact < 0 or impact > impact_limit: reasons.append("estimated_price_impact_unavailable_or_too_high")
+    if raw_impact is None: reasons.append("execution_impact_unavailable")
+    elif impact < 0 or impact > impact_limit: reasons.append("estimated_price_impact_too_high")
     model = detect_entry_model(metrics)
     if model: signals.append("setup:" + model)
     if buy_ratio > 0.55: signals.append("buy_volume_leads")
