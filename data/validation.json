@@ -1,10 +1,11 @@
 {
-  "started_at": 1795126750.4425087,
-  "started_at_utc": "2026-11-19T22:19:10+00:00",
+  "started_at": 1795198936.8117287,
+  "started_at_utc": "2026-11-20T18:22:16+00:00",
   "duration_days": 14,
   "mode": "PAPER ONLY",
   "starting_balance_usd": 100.0,
   "risk_per_trade": 0.01,
   "max_positions": 10,
+  "strategy_version": "hybrid-sniper-live-providers-v1",
   "status": "running"
 }
