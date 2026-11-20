@@ -136,3 +136,12 @@ def test_position_persists_hybrid_metadata(tmp_path):
     assert loaded.positions["p1"].entry_model == "momentum"
     assert loaded.positions["p1"].candidate_score >= 70
     assert loaded.positions["p1"].safety_status == "PASS"
+
+
+def test_transaction_counts_are_not_misreported_as_buy_volume_ratio(tmp_path):
+    e = make_engine(cfg(), tmp_path)
+    candidate = snap(102)
+    candidate.pop("buy_volume_ratio")
+    metrics = e._market_metrics(candidate, [[1, 100], [2, 101], [3, 102]])
+    assert metrics["buy_volume_ratio"] == 0.0
+    assert metrics["volume_acceleration"] == 2.0
