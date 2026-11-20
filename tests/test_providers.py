@@ -32,7 +32,7 @@ class FakeSession:
 def test_assessor_builds_fresh_evidence_and_size_specific_sell_quote():
     session=FakeSession()
     provider=SolanaTokenAssessor(session=session)
-    assert provider.rpc_url == "https://api.mainnet-beta.solana.com"
+    assert provider.rpc_url == "https://solana-rpc.publicnode.com"
     assert provider.jupiter_url == "https://lite-api.jup.ag/swap/v1/quote"
     result=provider.assess({"address":"mint","price":0.01},now=1000,notional_usd=50)
     assert result["mint_authority"] is None
@@ -70,3 +70,49 @@ def test_price_change_invalidates_cached_sell_quote():
     updated=provider.assess({"address":"mint","price":0.0102},now=1001,notional_usd=50)
     assert len(session.calls) > before
     assert updated["quote_amount_raw"] != "5000000000"
+
+
+def test_rpc_429_fails_over_to_secondary_endpoint():
+    import requests
+
+    class RateLimitedResponse:
+        status_code = 429
+        headers = {"Retry-After": "30"}
+
+    class FailPrimarySession(FakeSession):
+        def post(self, url, json, timeout):
+            if url == "https://solana-rpc.publicnode.com":
+                self.calls.append(("rpc_429", json["method"]))
+                raise requests.HTTPError("429 Too Many Requests", response=RateLimitedResponse())
+            self.calls.append(("rpc_fallback", json["method"]))
+            return super().post(url, json, timeout)
+
+    session = FailPrimarySession()
+    provider = SolanaTokenAssessor(session=session)
+    evidence = provider.assess({"address": "mint", "price": 0.01},
+                               now=2000, notional_usd=50)
+    assert evidence["sell_route_available"] is True
+    assert provider.status()["rpc_fallbacks"] == 1
+    assert provider.status()["rpc_endpoint"] == "https://api.mainnet-beta.solana.com"
+    assert provider.status()["rpc_cooldowns"] == 1
+
+
+def test_failed_mint_assessment_is_temporarily_cooled_down():
+    import requests
+    import pytest
+
+    class AlwaysLimitedSession(FakeSession):
+        def post(self, url, json, timeout):
+            response = type("RateLimitedResponse", (), {
+                "status_code": 429, "headers": {"Retry-After": "30"}})()
+            raise requests.HTTPError("429 Too Many Requests", response=response)
+
+    session = AlwaysLimitedSession()
+    provider = SolanaTokenAssessor(session=session)
+    with pytest.raises(requests.RequestException, match="All configured Solana RPC endpoints"):
+        provider.assess({"address": "mint", "price": 0.01}, now=3000, notional_usd=50)
+    attempts = len(session.calls)
+    with pytest.raises(ValueError, match="temporarily paused"):
+        provider.assess({"address": "mint", "price": 0.01}, now=3005, notional_usd=50)
+    assert len(session.calls) == attempts
+    assert provider.status()["assessment_cooldowns"] == 1
