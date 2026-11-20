@@ -1,6 +1,13 @@
 name: Jabiz Flash Paper Trading
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - "flash/**"
+      - "config/**"
+      - "pyproject.toml"
+      - ".github/workflows/paper-trading.yml"
   workflow_dispatch:
   schedule:
     - cron: "3-59/5 * * * *"
