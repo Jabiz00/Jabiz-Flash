@@ -163,7 +163,7 @@ class SolanaTokenAssessor:
         if not 0 <= impact <= 100:
             raise ValueError("Jupiter quote returned invalid price impact")
         self.metrics["jupiter_success"] += 1
-        return impact, raw_amount, "Jupiter quote API"
+        return impact, raw_amount, data.get("router") or data.get("swapType") or "Jupiter quote API"
 
     def assess(self, snapshot, now, notional_usd):
         mint = str(snapshot.get("address") or "").strip()
