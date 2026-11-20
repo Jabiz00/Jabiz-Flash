@@ -22,7 +22,7 @@ def main():
 
     cfg = load_config()
     notifier = TelegramNotifier()
-    engine = PaperEngine(cfg, notifier=notifier)
+    engine = PaperEngine(cfg, notifier=notifier)  # Strict safety fails closed until verified provider adapters are configured.
     market = DexScreener()
     stop_event = threading.Event()
     started_at = time.time()
@@ -51,13 +51,17 @@ def main():
             try:
                 pairs = market.discover(cfg["search_terms"], cfg["max_tokens_to_track"])
                 now = time.time()
+                snapshots = []
                 for pair in pairs:
                     try:
-                        engine.update(pair_snapshot(pair), now)
+                        snapshots.append(pair_snapshot(pair))
                     except (TypeError, ValueError, KeyError) as exc:
                         engine.scan_metrics["invalid_price"] += 1
                         print(f"[scanner] skipped malformed pair: {exc}")
+                engine.process_scan(snapshots, now)
                 engine.market_status = market.status()
+                engine.market_status["safety_provider"] = "NOT_CONFIGURED_FAIL_CLOSED"
+                engine.market_status["execution_impact_source"] = "NOT_CONFIGURED_FAIL_CLOSED"
                 engine.market_status["last_scan_at"] = now
                 engine.market_status["cycle"] = cycle
             except Exception as exc:
@@ -72,7 +76,7 @@ def main():
             engine.save_state()
             write_status(engine)
             metrics, api = engine.scan_metrics, engine.market_status
-            print(f"[SCAN {cycle}] discovered={metrics['discovered']} qualified={metrics['qualified_entries']} "
+            print(f"[SCAN {cycle}] discovered={metrics['discovered']} qualified={metrics['qualified_entries']} safety_rejected={metrics.get('rejected_safety', 0)} "
                   f"open={len(engine.positions)} API={api.get('successful_requests', 0)}/{api.get('request_count', 0)} "
                   f"success | equity={engine.equity:.2f}")
             if deadline is not None and time.monotonic() >= deadline:
