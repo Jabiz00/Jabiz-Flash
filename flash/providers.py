@@ -109,7 +109,6 @@ class SolanaTokenAssessor:
             except ValueError as exc:
                 errors.append(f"{endpoint}: {str(exc)[:160]}")
                 continue
-        self.metrics["rpc_failed"] += 1
         self.metrics["rpc_last_error"] = " | ".join(errors)[-400:]
         raise requests.RequestException(
             f"All configured Solana RPC endpoints failed for {method}: " +
@@ -287,6 +286,7 @@ class SolanaTokenAssessor:
             self.metrics["status"] = "degraded"
             self.metrics["last_failed_stage"] = stage
             self.metrics["last_error"] = f"{stage}: {str(exc)[:200]}"
+            self._failure_cache[mint] = {"failed_at": float(now), "error": self.metrics["last_error"]}
             if stage == "rugcheck":
                 self.metrics["rugcheck_failed"] += 1
             elif stage == "jupiter_quote":
