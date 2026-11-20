@@ -30,8 +30,8 @@ def detect_entry_model(metrics: Mapping[str, Any]) -> str | None:
     if metrics.get("pullback_reclaim") is True and metrics.get("higher_lows") is True:
         return "pullback_continuation"
     if (_number(metrics, "momentum_pct") >= 0.35
-        and _number(metrics, "buy_volume_ratio") > 0.55
-        and _number(metrics, "volume_acceleration") >= 1.2):
+        and _number(metrics, "buy_pressure_ratio") > 0.55
+        and _number(metrics, "volume_velocity_ratio") >= 1.2):
         return "momentum"
     return None
 
@@ -44,8 +44,8 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
     signals: list[str] = []
     liquidity = max(0.0, _number(metrics, "liquidity_usd"))
     volume = max(0.0, _number(metrics, "volume24_usd"))
-    buy_ratio = min(1.0, max(0.0, _number(metrics, "buy_volume_ratio")))
-    acceleration = max(0.0, _number(metrics, "volume_acceleration"))
+    buy_ratio = min(1.0, max(0.0, _number(metrics, "buy_pressure_ratio")))
+    acceleration = max(0.0, _number(metrics, "volume_velocity_ratio"))
     setup = min(1.0, max(0.0, _number(metrics, "setup_confirmation")))
     raw_impact = metrics.get("execution_impact_pct")
     impact = _number(metrics, "execution_impact_pct", 999.0)
@@ -66,8 +66,8 @@ def score_candidate(metrics: Mapping[str, Any], *, safety_passed: bool,
     elif impact < 0 or impact > impact_limit: reasons.append("estimated_price_impact_too_high")
     model = detect_entry_model(metrics)
     if model: signals.append("setup:" + model)
-    if buy_ratio > 0.55: signals.append("buy_volume_leads")
-    if acceleration >= 1.2: signals.append("volume_accelerating")
+    if buy_ratio > 0.55: signals.append("buy_pressure_leads")
+    if acceleration >= 1.2: signals.append("volume_velocity_confirmed")
     if _number(metrics, "momentum_pct") >= 0.35: signals.append("momentum_confirmed")
     if metrics.get("higher_lows") is True: signals.append("higher_lows")
     independent = [s for s in signals if not s.startswith("setup:")]
