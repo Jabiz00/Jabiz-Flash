@@ -117,4 +117,4 @@ def test_malformed_numeric_metrics_do_not_crash():
         momentum_pct=None,
     ), safety_passed=True)
     assert not decision.eligible
-    assert "estimated_price_impact_unavailable_or_too_high" in decision.reasons
+    assert "execution_impact_unavailable" in decision.reasons
