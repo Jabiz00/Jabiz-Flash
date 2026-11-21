@@ -117,3 +117,25 @@ def test_failed_mint_assessment_is_temporarily_cooled_down():
         provider.assess({"address": "mint", "price": 0.01}, now=3005, notional_usd=50)
     assert len(session.calls) == attempts
     assert provider.status()["assessment_cooldowns"] == 1
+
+
+def test_rpc_credentials_are_redacted_from_status_and_errors():
+    from flash.providers import redact_secrets
+    secret_url = "https://mainnet.helius-rpc.com/?api-key=example-secret"
+    assert "example-secret" not in redact_secrets(secret_url)
+    assert "api-key=[REDACTED]" in redact_secrets(secret_url)
+
+    class FailingSession(FakeSession):
+        def post(self, url, json, timeout):
+            import requests
+            raise requests.Timeout(f"request timed out: {url}")
+
+    provider = SolanaTokenAssessor(
+        rpc_url=secret_url,
+        session=FailingSession(),
+    )
+    assert "example-secret" not in provider.status()["rpc_endpoint"]
+    import pytest
+    with pytest.raises(Exception):
+        provider._rpc("getAccountInfo", ["mint", {"encoding": "jsonParsed"}])
+    assert "example-secret" not in provider.status()["rpc_last_error"]
