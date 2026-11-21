@@ -1,13 +1,13 @@
 {
-  "generated_at_utc": "2026-11-20T07:16:18+00:00",
-  "validation_started_at_utc": "2026-11-19T22:19:10+00:00",
-  "elapsed_days": 0.373,
-  "days_remaining": 13.627,
+  "generated_at_utc": "2026-11-21T07:08:01+00:00",
+  "validation_started_at_utc": "2026-11-20T18:22:16+00:00",
+  "elapsed_days": 0.532,
+  "days_remaining": 13.468,
   "status": "running",
   "mode": "PAPER ONLY",
   "daily_period": {
-    "from_utc": "2026-11-19T22:19:10+00:00",
-    "to_utc": "2026-11-20T07:16:18+00:00"
+    "from_utc": "2026-11-20T18:22:16+00:00",
+    "to_utc": "2026-11-21T07:08:01+00:00"
   },
   "daily": {
     "closed_trades": 0,
@@ -21,20 +21,31 @@
     "average_holding_seconds": 0,
     "exit_reasons": {},
     "scan_metrics": {
-      "discovered": 160,
-      "valid_price": 159,
-      "invalid_price": 1,
+      "discovered": 320,
+      "valid_price": 317,
+      "invalid_price": 3,
       "managed_positions": 0,
       "qualified_entries": 0,
-      "rejected_liquidity": 88,
-      "rejected_volume": 46,
-      "rejected_flow": 19,
+      "rejected_liquidity": 141,
+      "rejected_volume": 129,
+      "rejected_flow": 17,
       "rejected_pair_age": 0,
       "waiting_for_price_history": 0,
-      "rejected_momentum": 6,
-      "blocked_position_limit": 0
+      "rejected_momentum": 0,
+      "blocked_position_limit": 0,
+      "rejected_safety": 11,
+      "rejected_score": 0,
+      "rejected_execution": 0,
+      "rejected_setup": 0,
+      "rejected_transactions": 19,
+      "ranked_candidates": 0,
+      "provider_shortlist": 11,
+      "provider_candidates_deferred": 0,
+      "provider_assessments_attempted": 11,
+      "provider_assessments_passed": 0,
+      "provider_assessments_failed": 11
     },
-    "completed_paper_sessions": 2
+    "completed_paper_sessions": 4
   },
   "cumulative": {
     "closed_trades": 0,
@@ -48,24 +59,39 @@
     "average_holding_seconds": 0,
     "exit_reasons": {},
     "scan_metrics": {
-      "discovered": 160,
-      "valid_price": 159,
-      "invalid_price": 1,
+      "discovered": 320,
+      "valid_price": 317,
+      "invalid_price": 3,
       "managed_positions": 0,
       "qualified_entries": 0,
-      "rejected_liquidity": 88,
-      "rejected_volume": 46,
-      "rejected_flow": 19,
+      "rejected_liquidity": 141,
+      "rejected_volume": 129,
+      "rejected_flow": 17,
       "rejected_pair_age": 0,
       "waiting_for_price_history": 0,
-      "rejected_momentum": 6,
-      "blocked_position_limit": 0
+      "rejected_momentum": 0,
+      "blocked_position_limit": 0,
+      "rejected_safety": 11,
+      "rejected_score": 0,
+      "rejected_execution": 0,
+      "rejected_setup": 0,
+      "rejected_transactions": 19,
+      "ranked_candidates": 0,
+      "provider_shortlist": 11,
+      "provider_candidates_deferred": 0,
+      "provider_assessments_attempted": 11,
+      "provider_assessments_passed": 0,
+      "provider_assessments_failed": 11
     },
-    "completed_paper_sessions": 2
+    "completed_paper_sessions": 4
   },
   "run_monitor": {
-    "status": "unavailable",
-    "error": "401 Client Error: Unauthorized for url: https://api.github.com/repos/Jabiz00/Jabiz-Flash/actions/workflows/paper-trading.yml/runs?per_page=100&page=1&created=%3E%3D2026-11-19"
+    "scheduled_runs_observed": 2,
+    "successful_runs": 2,
+    "failed_or_cancelled_runs": 0,
+    "expected_5_minute_slots": 153,
+    "unobserved_slots_estimate": 151,
+    "note": "Estimate only; GitHub can delay or skip scheduled events."
   },
   "limitations": [
     "DexScreener snapshots are not executable quotes.",
