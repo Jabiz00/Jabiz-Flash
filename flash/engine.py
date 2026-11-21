@@ -6,6 +6,7 @@ from dataclasses import dataclass, asdict
 
 from .safety import evaluate_token_safety
 from .strategy import score_candidate, rank_candidates, detect_entry_model
+from .providers import redact_secrets
 
 @dataclass
 class Position:
@@ -102,7 +103,7 @@ class PaperEngine:
             try:
                 self.notifier.send(message)
             except Exception as exc:
-                print(f"[notify] delivery failed: {str(exc)[:200]}")
+                print(f"[notify] delivery failed: {redact_secrets(str(exc))[:200]}")
 
     @staticmethod
     def momentum(samples):
@@ -191,7 +192,7 @@ class PaperEngine:
                 'last_checked_at': evidence.get('provider_checked_at'), 'last_error': '',
                 'quote_router': evidence.get('quote_router'), 'token_program': evidence.get('token_program')}
         except Exception as exc:
-            message = str(exc)[:240]
+            message = redact_secrets(str(exc))[:240]
             print(f'[safety] provider failed closed: {message}')
             self.scan_metrics['provider_assessments_failed'] += 1
             self.scan_metrics['last_provider_error'] = message
