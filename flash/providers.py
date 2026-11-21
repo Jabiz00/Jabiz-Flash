@@ -9,6 +9,24 @@ from __future__ import annotations
 import os
 import time
 import requests
+import re
+
+
+def redact_secrets(value):
+    """Remove credentials from URLs and common secret-bearing log text."""
+    text = str(value)
+    text = re.sub(
+        r"(?i)(https?://[^\s\"'<>?]+\?[^\s\"'<>]*)",
+        lambda match: re.sub(
+            r"(?i)([?&](?:api[-_]?key|token|access[-_]?token|secret|authorization)=)[^&\s]+",
+            r"\1[REDACTED]", match.group(0)),
+        text)
+    text = re.sub(r"(?i)(\b(?:api[-_]?key|access[-_]?token|client_secret)\b\s*[:=]\s*)[^\s,;]+", r"\1[REDACTED]", text)
+    return text
+
+
+def safe_endpoint(url):
+    return redact_secrets(url)
 
 SOL_MINT = "So11111111111111111111111111111111111111112"
 RPC_DEFAULT = "https://solana-rpc.publicnode.com"
@@ -43,7 +61,7 @@ class SolanaTokenAssessor:
             "last_failed_stage": "", "rpc_success": 0, "rpc_failed": 0,
             "rugcheck_success": 0, "rugcheck_failed": 0,
             "jupiter_success": 0, "jupiter_failed": 0,
-            "rpc_endpoint": self.rpc_url, "rpc_endpoints_configured": len(self.rpc_endpoints),
+            "rpc_endpoint": safe_endpoint(self.rpc_url), "rpc_endpoints_configured": len(self.rpc_endpoints),
             "rpc_requests": 0, "rpc_fallbacks": 0, "rpc_cooldowns": 0,
             "rpc_last_http_status": None, "rpc_last_error": "",
             "assessment_cooldowns": 0,
@@ -86,7 +104,7 @@ class SolanaTokenAssessor:
                     raise ValueError("Solana RPC " + method + " failed: " +
                                      str(detail or "invalid response")[:140])
                 self.rpc_url = endpoint
-                self.metrics["rpc_endpoint"] = endpoint
+                self.metrics["rpc_endpoint"] = safe_endpoint(endpoint)
                 self.metrics["rpc_success"] += 1
                 self.metrics["rpc_last_error"] = ""
                 if index:
@@ -96,7 +114,7 @@ class SolanaTokenAssessor:
                 response_obj = getattr(exc, "response", None)
                 status = getattr(response_obj, "status_code", None)
                 self.metrics["rpc_last_http_status"] = status or self.metrics.get("rpc_last_http_status")
-                errors.append(f"{endpoint}: {str(exc)[:160]}")
+                errors.append(f"{safe_endpoint(endpoint)}: {redact_secrets(str(exc))[:160]}")
                 if status == 429:
                     retry_after = getattr(response_obj, "headers", {}).get("Retry-After")
                     try:
@@ -107,9 +125,9 @@ class SolanaTokenAssessor:
                     self.metrics["rpc_cooldowns"] += 1
                 continue
             except ValueError as exc:
-                errors.append(f"{endpoint}: {str(exc)[:160]}")
+                errors.append(f"{safe_endpoint(endpoint)}: {redact_secrets(str(exc))[:160]}")
                 continue
-        self.metrics["rpc_last_error"] = " | ".join(errors)[-400:]
+        self.metrics["rpc_last_error"] = redact_secrets(" | ".join(errors))[-400:]
         raise requests.RequestException(
             f"All configured Solana RPC endpoints failed for {method}: " +
             self.metrics["rpc_last_error"])
@@ -272,7 +290,7 @@ class SolanaTokenAssessor:
             self.metrics["failed"] += 1
             self.metrics["status"] = "degraded"
             self.metrics["last_failed_stage"] = stage
-            self.metrics["last_error"] = f"{stage}: {str(exc)[:200]}"
+            self.metrics["last_error"] = redact_secrets(f"{stage}: {str(exc)[:200]}")
             self._failure_cache[mint] = {"failed_at": float(now), "error": self.metrics["last_error"]}
             if stage == "rugcheck":
                 self.metrics["rugcheck_failed"] += 1
