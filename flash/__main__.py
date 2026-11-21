@@ -10,7 +10,7 @@ from .engine import PaperEngine
 from .notify import TelegramNotifier
 from .dashboard import write_status
 from .web import start_status_server
-from .providers import SolanaTokenAssessor
+from .providers import SolanaTokenAssessor, redact_secrets
 
 
 def main():
@@ -84,10 +84,10 @@ def main():
                 now = time.time()
                 engine.provider_status = assessor.status()
                 engine.market_status = market.status()
-                engine.market_status.update({"safety_provider":assessor.status(), "runtime_error": str(exc)[:240], "last_scan_at": now, "cycle": cycle})
-                print(f"[scanner] cycle {cycle} failed: {exc}")
+                engine.market_status.update({"safety_provider":assessor.status(), "runtime_error": redact_secrets(str(exc))[:240], "last_scan_at": now, "cycle": cycle})
+                print(f"[scanner] cycle {cycle} failed: {redact_secrets(exc)}")
                 if now - last_error_notice >= 300:
-                    notifier.send("⚠️ JABIZ FLASH — SCANNER ERROR\n" + str(exc)[:300] + "\nPaper engine remains running and will retry.")
+                    notifier.send("⚠️ JABIZ FLASH — SCANNER ERROR\n" + redact_secrets(exc)[:300] + "\nPaper engine remains running and will retry.")
                     last_error_notice = now
 
             if market_data_is_stale(engine.market_status.get("last_success_at"), now,
